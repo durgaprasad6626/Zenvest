@@ -1484,17 +1484,21 @@ def _warm_cache():
     from fetch_stock import prefetch_symbols
     prefetch_symbols(warm_targets, max_workers=10)
     print(f'[Cache Warmer] Done — {len(warm_targets)} symbols pre-cached.')
-
 if __name__ == '__main__':
     if SCHEDULER_AVAILABLE:
         scheduler = BackgroundScheduler()
-        scheduler.add_job(check_price_alerts, 'interval', minutes=30, id='alert_checker')
+        scheduler.add_job(
+            check_price_alerts,
+            'interval',
+            minutes=30,
+            id='alert_checker'
+        )
         scheduler.start()
-        print('✅ APScheduler started — price alerts checked every 30 min')
+        print('✅ APScheduler started')
 
-    # Kick off cache warming in a background thread (non-blocking)
+    # Background cache warming
     threading.Thread(target=_warm_cache, daemon=True).start()
 
-    print('Zenvest (Supabase Mode) starting on http://localhost:5001')
-    app.run(debug=True, port=5001)
+    print('🚀 Zenvest starting...')
 
+    app.run(host='0.0.0.0', port=5001)
