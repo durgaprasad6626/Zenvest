@@ -1,0 +1,722 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}Zenvest{% endblock %}</title>
+  <meta name="description" content="{% block description %}AI-powered stock intelligence platform — predictions, fundamentals, and personalized recommendations{% endblock %}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+  {% block head %}{% endblock %}
+</head>
+<body>
+<div class="app-layout">
+  <!-- Sidebar -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-logo" style="padding: 18px 16px 16px; border-bottom: 1px solid var(--border);">
+      <a href="/" style="display:block; text-decoration: none;">
+        <div style="display: flex; align-items: center; gap: 12px;">
+
+          <!-- Premium icon mark -->
+          <div style="
+            position: relative;
+            width: 40px; height: 40px; flex-shrink: 0;
+            background: linear-gradient(145deg, #7c5cfc 0%, #5b35e8 50%, #3d1fb8 100%);
+            border-radius: 12px;
+            display: flex; align-items: center; justify-content: center;
+            box-shadow:
+              0 0 0 1px rgba(124,92,252,0.5),
+              0 6px 20px rgba(108,71,255,0.45),
+              inset 0 1px 0 rgba(255,255,255,0.25);
+            overflow: hidden;
+          ">
+            <!-- shimmer overlay -->
+            <div style="
+              position: absolute; inset: 0;
+              background: linear-gradient(120deg, transparent 30%, rgba(255,255,255,0.18) 50%, transparent 70%);
+              animation: zv-shimmer 3s ease-in-out infinite;
+            "></div>
+            <!-- Z lettermark -->
+            <span style="
+              position: relative; z-index: 1;
+              font-size: 19px; font-weight: 900; color: #fff;
+              font-style: italic; letter-spacing: -2px;
+              text-shadow: 0 2px 8px rgba(0,0,0,0.3);
+              font-family: 'Georgia', serif;
+            ">Z</span>
+          </div>
+
+          <!-- Wordmark -->
+          <div style="display: flex; flex-direction: column; gap: 2px;">
+            <div style="
+              font-size: 19px; font-weight: 800;
+              letter-spacing: -0.8px; line-height: 1;
+              color: #0d0d0d;
+              font-family: var(--font);
+            ">Zen<span style="color: #6c47ff;">vest</span></div>
+            <div style="
+              display: flex; align-items: center; gap: 5px;
+            ">
+              <div style="width: 16px; height: 1.5px; background: linear-gradient(90deg, #6c47ff, #a78bfa); border-radius: 2px;"></div>
+              <span style="font-size: 8.5px; font-weight: 600; color: #9b87f5; letter-spacing: 1.8px; text-transform: uppercase;">AI Platform</span>
+            </div>
+          </div>
+        </div>
+      </a>
+    </div>
+    <style>
+      @keyframes zv-shimmer {
+        0%   { transform: translateX(-100%); }
+        50%  { transform: translateX(100%); }
+        100% { transform: translateX(100%); }
+      }
+    </style>
+
+    <nav class="sidebar-nav">
+      <div class="nav-section">
+        <div class="nav-section-label">Explore</div>
+        <a href="{{ url_for('index') }}" class="nav-item {% if request.endpoint == 'index' %}active{% endif %}">
+          <span class="nav-icon"><i class="fa-solid fa-house"></i></span>
+          Dashboard
+        </a>
+        <a href="{{ url_for('recommendations') }}" class="nav-item {% if request.endpoint == 'recommendations' %}active{% endif %}">
+          <span class="nav-icon"><i class="fa-solid fa-robot"></i></span>
+          AI Picks
+          <span class="nav-badge">TOP 10</span>
+        </a>
+        <a href="{{ url_for('screener') }}" class="nav-item {% if request.endpoint == 'screener' %}active{% endif %}">
+          <span class="nav-icon"><i class="fa-solid fa-filter"></i></span>
+          Screener
+        </a>
+        <a href="/compare" class="nav-item {% if request.endpoint == 'compare' %}active{% endif %}">
+          <span class="nav-icon"><i class="fa-solid fa-chart-bar"></i></span>
+          Compare
+        </a>
+        <a href="/news" class="nav-item {% if request.endpoint == 'news_page' %}active{% endif %}">
+          <span class="nav-icon"><i class="fa-solid fa-newspaper"></i></span>
+          Market News
+        </a>
+        <a href="/heatmap" class="nav-item {% if request.endpoint == 'heatmap_page' %}active{% endif %}">
+          <span class="nav-icon"><i class="fa-solid fa-fire"></i></span>
+          Heatmap
+        </a>
+        <a href="/options" class="nav-item {% if request.endpoint == 'options_page' %}active{% endif %}">
+          <span class="nav-icon"><i class="fa-solid fa-link"></i></span>
+          Options Chain
+        </a>
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-section-label">Portfolio</div>
+        <a href="{{ url_for('portfolio') }}" class="nav-item {% if request.endpoint == 'portfolio' %}active{% endif %}">
+          <span class="nav-icon"><i class="fa-solid fa-briefcase"></i></span>
+          My Portfolio
+        </a>
+        <a href="/watchlist" class="nav-item {% if request.path == '/watchlist' %}active{% endif %}">
+          <span class="nav-icon"><i class="fa-regular fa-star"></i></span>
+          Watchlist
+        </a>
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-section-label">Stocks</div>
+        <a href="{{ url_for('stock_detail', symbol='RELIANCE.NS') }}" class="nav-item">
+          <span class="nav-icon">🛢️</span> Reliance
+        </a>
+        <a href="{{ url_for('stock_detail', symbol='TCS.NS') }}" class="nav-item">
+          <span class="nav-icon">💻</span> TCS
+        </a>
+        <a href="{{ url_for('stock_detail', symbol='INFY.NS') }}" class="nav-item">
+          <span class="nav-icon">🔷</span> Infosys
+        </a>
+        <a href="{{ url_for('stock_detail', symbol='HDFCBANK.NS') }}" class="nav-item">
+          <span class="nav-icon">🏦</span> HDFC Bank
+        </a>
+        <a href="{{ url_for('stock_detail', symbol='ICICIBANK.NS') }}" class="nav-item">
+          <span class="nav-icon">💳</span> ICICI Bank
+        </a>
+        <a href="{{ url_for('stock_detail', symbol='SBIN.NS') }}" class="nav-item">
+          <span class="nav-icon">🏛️</span> SBI
+        </a>
+      </div>
+    </nav>
+
+    <div class="sidebar-user">
+      {% if user %}
+      <a href="/profile" style="text-decoration:none">
+        <div class="user-card">
+          <div class="user-avatar">{{ user.name[0].upper() }}</div>
+          <div>
+            <div class="user-name">{{ user.name }}</div>
+            <div class="user-role">{{ user.risk_level }} Risk · Profile</div>
+          </div>
+        </div>
+      </a>
+      <a href="/logout" style="display:block;margin-top:6px;text-align:center;font-size:11px;color:var(--text-4);padding:4px;border-radius:6px;transition:all 0.15s" onmouseover="this.style.color='var(--red)'" onmouseout="this.style.color='var(--text-4)'">Sign Out</a>
+      {% else %}
+      <a href="{{ url_for('login') }}" class="btn-signin-sidebar">
+        <i class="fa-solid fa-right-to-bracket"></i> Sign In
+      </a>
+      {% endif %}
+      <div style="margin-top: 16px; font-size: 10px; color: rgba(255,255,255,0.4); border-top: 1px solid rgba(255,255,255,0.1); padding-top: 12px;">
+        <strong>Disclaimer:</strong> This is not financial advice. AI predictions are simulated for informational purposes without guaranteed returns.
+      </div>
+    </div>
+  </aside>
+
+  <!-- Main -->
+  <div class="main-content">
+    <!-- Ticker Tape -->
+    <div class="ticker-tape" id="tickerTape">
+      <div class="ticker-inner" id="tickerInner">
+        <span class="ticker-item"><span class="ticker-sym">NIFTY 50</span><span class="ticker-price">Loading...</span></span>
+        <span class="ticker-item"><span class="ticker-sym">SENSEX</span><span class="ticker-price">—</span></span>
+        <span class="ticker-item"><span class="ticker-sym">BANK NIFTY</span><span class="ticker-price">—</span></span>
+      </div>
+    </div>
+
+    <!-- Topbar -->
+    <header class="topbar">
+      <button class="topbar-btn" id="menuToggle" onclick="document.getElementById('sidebar').classList.toggle('open')" style="display:none">
+        <i class="fa-solid fa-bars"></i>
+      </button>
+
+      <div class="topbar-search" style="position:relative">
+        <span class="search-icon"><i class="fa-solid fa-magnifying-glass"></i></span>
+        <input type="text" id="searchInput" placeholder="Search stocks — RELIANCE, TCS, INFY..." autocomplete="off">
+        <div class="search-results" id="searchResults"></div>
+      </div>
+
+      <div class="topbar-actions">
+        {% if user %}
+        <div class="topbar-btn" title="Notifications" onclick="toggleAlertsMenu()" style="position:relative;cursor:pointer">
+          <i class="fa-solid fa-bell"></i>
+          <span class="notification-dot" id="navAlertDot" style="display:none;position:absolute;top:6px;right:6px;width:8px;height:8px;background:var(--red);border-radius:50%"></span>
+        </div>
+        <!-- Alerts Dropdown -->
+        <div id="alertsDropdown" style="display:none;position:absolute;top:60px;right:20px;width:320px;background:var(--bg-white);border:1px solid var(--border);border-radius:12px;box-shadow:0 10px 30px rgba(0,0,0,0.1);z-index:99;overflow:hidden">
+          <div style="padding:14px 16px;border-bottom:1px solid var(--border);font-weight:700;display:flex;justify-content:space-between">
+            <span>Smart Alerts</span><button onclick="document.getElementById('alertsDropdown').style.display='none'" style="background:none;border:none;color:var(--text-3);font-size:11px;cursor:pointer">Close</button>
+          </div>
+          <div id="alertsList" style="max-height:300px;overflow-y:auto;background:var(--bg)">
+            <div style="padding:20px;text-align:center;color:var(--text-4);font-size:12px">Checking triggers...</div>
+          </div>
+        </div>
+        {% endif %}
+        <div class="topbar-btn" title="Dark Mode" id="darkModeBtn" onclick="toggleDarkMode()" style="cursor:pointer">
+          <i class="fa-solid fa-moon" id="darkModeIcon"></i>
+        </div>
+        <div class="topbar-btn" title="Portfolio">
+          <a href="{{ url_for('portfolio') }}" style="color:inherit"><i class="fa-solid fa-briefcase"></i></a>
+        </div>
+        <div class="topbar-btn" title="AI Recommendations">
+          <a href="{{ url_for('recommendations') }}" style="color:inherit"><i class="fa-solid fa-robot"></i></a>
+        </div>
+        {% if user %}
+        <div class="topbar-btn" title="Settings" onclick="openSettingsModal()" style="cursor:pointer">
+          <i class="fa-solid fa-gear"></i>
+        </div>
+        {% else %}
+        <a href="{{ url_for('login') }}" class="btn btn-primary btn-sm">Sign In</a>
+        {% endif %}
+      </div>
+    </header>
+
+    <!-- Page Content -->
+    <main class="page-content">
+      {% block content %}{% endblock %}
+
+      <!-- Footer -->
+      <!-- ═══════════════ PREMIUM FOOTER ═══════════════ -->
+      <footer style="margin-top: 60px;">
+
+        <!-- Dark luxury Contact Us banner -->
+        <div style="
+          position: relative; overflow: hidden;
+          background: linear-gradient(135deg, #0d0d1a 0%, #12102a 40%, #0f0d25 100%);
+          border-radius: 24px;
+          padding: 48px 48px 44px;
+          margin-bottom: 28px;
+        ">
+
+          <!-- Decorative glow orbs -->
+          <div style="position:absolute;top:-60px;left:-60px;width:220px;height:220px;border-radius:50%;background:radial-gradient(circle,rgba(108,71,255,0.35) 0%,transparent 70%);pointer-events:none;"></div>
+          <div style="position:absolute;bottom:-80px;right:-40px;width:260px;height:260px;border-radius:50%;background:radial-gradient(circle,rgba(167,139,250,0.2) 0%,transparent 70%);pointer-events:none;"></div>
+          <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:1px;height:80%;background:linear-gradient(180deg,transparent,rgba(108,71,255,0.12),transparent);pointer-events:none;"></div>
+
+          <!-- Watermark logo -->
+          <div style="position:absolute;right:32px;top:50%;transform:translateY(-50%);width:180px;opacity:0.04;pointer-events:none;filter:invert(1) brightness(2);">
+            <img src="{{ url_for('static', filename='images/zenvest-logo.png') }}" style="width:100%;height:auto;object-fit:contain;" alt="">
+          </div>
+
+          <div style="position:relative;z-index:2;display:flex;flex-wrap:wrap;gap:48px;align-items:flex-start;justify-content:space-between;">
+
+            <!-- LEFT: Brand identity -->
+            <div style="min-width:220px;">
+              <!-- Premium dark-mode logo -->
+              <div style="display:flex;align-items:center;gap:13px;margin-bottom:20px;">
+                <div style="
+                  width:46px;height:46px;flex-shrink:0;
+                  background:linear-gradient(145deg,#7c5cfc,#4a2fd4);
+                  border-radius:14px;
+                  display:flex;align-items:center;justify-content:center;
+                  box-shadow:0 0 0 1px rgba(124,92,252,0.6),0 8px 28px rgba(108,71,255,0.5),inset 0 1px 0 rgba(255,255,255,0.2);
+                  position:relative;overflow:hidden;
+                ">
+                  <div style="position:absolute;inset:0;background:linear-gradient(120deg,transparent 30%,rgba(255,255,255,0.15) 50%,transparent 70%);animation:zv-shimmer 3s ease-in-out infinite;"></div>
+                  <span style="position:relative;z-index:1;font-size:22px;font-weight:900;color:#fff;font-style:italic;letter-spacing:-2px;font-family:'Georgia',serif;text-shadow:0 2px 8px rgba(0,0,0,0.4);">Z</span>
+                </div>
+                <div>
+                  <div style="
+                    font-size:24px;font-weight:800;letter-spacing:-0.8px;line-height:1;
+                    background:linear-gradient(90deg,#fff 40%,#a78bfa 100%);
+                    -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+                  ">Zenvest</div>
+                  <div style="font-size:9px;font-weight:600;letter-spacing:2.5px;text-transform:uppercase;color:rgba(167,139,250,0.7);margin-top:3px;">AI Intelligence Platform</div>
+                </div>
+              </div>
+              <p style="color:rgba(255,255,255,0.38);font-size:13px;line-height:1.7;max-width:240px;">
+                Empowering investors with real-time AI-driven stock intelligence, predictions &amp; portfolio optimization.
+              </p>
+              <div style="display:flex;align-items:center;gap:8px;margin-top:16px;">
+                <i class="fa-solid fa-location-dot" style="color:#7c5cfc;font-size:12px;"></i>
+                <span style="color:rgba(255,255,255,0.4);font-size:12px;">Boduppal, Hyderabad 500092 &bull; Telangana, India</span>
+              </div>
+            </div>
+
+            <!-- RIGHT: Contact Us -->
+            <div style="min-width:200px;">
+              <div style="display:flex;align-items:center;gap:8px;margin-bottom:24px;">
+                <div style="width:3px;height:20px;background:linear-gradient(180deg,#7c5cfc,#a78bfa);border-radius:2px;"></div>
+                <h4 style="font-size:13px;font-weight:700;color:rgba(255,255,255,0.9);letter-spacing:1.5px;text-transform:uppercase;margin:0;">Connect With Us</h4>
+              </div>
+              <div style="display:flex;gap:12px;">
+                <!-- LinkedIn -->
+                <a href="https://www.linkedin.com/in/durga-prasad-kemidi-603633295" target="_blank" title="LinkedIn"
+                  style="
+                    width:48px;height:48px;border-radius:14px;
+                    background:rgba(255,255,255,0.04);
+                    border:1px solid rgba(255,255,255,0.1);
+                    backdrop-filter:blur(10px);
+                    display:flex;align-items:center;justify-content:center;
+                    color:rgba(255,255,255,0.7);font-size:20px;
+                    transition:all 0.25s cubic-bezier(0.4,0,0.2,1);
+                  "
+                  onmouseover="this.style.background='rgba(10,102,194,0.3)';this.style.borderColor='rgba(10,102,194,0.6)';this.style.color='#fff';this.style.transform='translateY(-4px)';this.style.boxShadow='0 8px 24px rgba(10,102,194,0.4)';"
+                  onmouseout="this.style.background='rgba(255,255,255,0.04)';this.style.borderColor='rgba(255,255,255,0.1)';this.style.color='rgba(255,255,255,0.7)';this.style.transform='none';this.style.boxShadow='none';">
+                  <i class="fa-brands fa-linkedin-in"></i>
+                </a>
+                <!-- Instagram -->
+                <a href="https://www.instagram.com/darling_durga07/" target="_blank" title="Instagram"
+                  style="
+                    width:48px;height:48px;border-radius:14px;
+                    background:rgba(255,255,255,0.04);
+                    border:1px solid rgba(255,255,255,0.1);
+                    backdrop-filter:blur(10px);
+                    display:flex;align-items:center;justify-content:center;
+                    color:rgba(255,255,255,0.7);font-size:20px;
+                    transition:all 0.25s cubic-bezier(0.4,0,0.2,1);
+                  "
+                  onmouseover="this.style.background='rgba(225,48,108,0.3)';this.style.borderColor='rgba(225,48,108,0.6)';this.style.color='#fff';this.style.transform='translateY(-4px)';this.style.boxShadow='0 8px 24px rgba(225,48,108,0.4)';"
+                  onmouseout="this.style.background='rgba(255,255,255,0.04)';this.style.borderColor='rgba(255,255,255,0.1)';this.style.color='rgba(255,255,255,0.7)';this.style.transform='none';this.style.boxShadow='none';">
+                  <i class="fa-brands fa-instagram"></i>
+                </a>
+                <!-- GitHub -->
+                <a href="https://github.com/durgaprasad6626" target="_blank" title="GitHub"
+                  style="
+                    width:48px;height:48px;border-radius:14px;
+                    background:rgba(255,255,255,0.04);
+                    border:1px solid rgba(255,255,255,0.1);
+                    backdrop-filter:blur(10px);
+                    display:flex;align-items:center;justify-content:center;
+                    color:rgba(255,255,255,0.7);font-size:20px;
+                    transition:all 0.25s cubic-bezier(0.4,0,0.2,1);
+                  "
+                  onmouseover="this.style.background='rgba(255,255,255,0.12)';this.style.borderColor='rgba(255,255,255,0.3)';this.style.color='#fff';this.style.transform='translateY(-4px)';this.style.boxShadow='0 8px 24px rgba(255,255,255,0.15)';"
+                  onmouseout="this.style.background='rgba(255,255,255,0.04)';this.style.borderColor='rgba(255,255,255,0.1)';this.style.color='rgba(255,255,255,0.7)';this.style.transform='none';this.style.boxShadow='none';">
+                  <i class="fa-brands fa-github"></i>
+                </a>
+              </div>
+              <!-- Tagline -->
+              <p style="color:rgba(255,255,255,0.25);font-size:11px;margin-top:20px;line-height:1.6;">Smart investing starts here. <br>Insights powered by AI &amp; market data.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Bottom bar -->
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;padding:0 4px 32px;">
+          <p style="color:var(--text-4);font-size:12px;">© 2016–2026 <span style="color:var(--purple);font-weight:600;">Zenvest</span>. All rights reserved.</p>
+          <p style="color:var(--text-4);font-size:11px;">⚠ Not financial advice. For informational purposes only.</p>
+        </div>
+      </footer>
+    </main>
+  </div>
+</div>
+
+<!-- Toast Container -->
+<div class="toast-container" id="toastContainer"></div>
+
+<!-- Chatbot Advisor (ZenBot) -->
+<div id="zenBot" class="zenbot-container">
+  <div id="zenBotHeader" class="zenbot-header" onclick="toggleZenBot()">
+    <div class="zenbot-title"><i class="fa-solid fa-robot"></i> ZenBot Advisor</div>
+    <div class="zenbot-toggle"><i id="zenBotIcon" class="fa-solid fa-chevron-up"></i></div>
+  </div>
+  <div id="zenBotBody" class="zenbot-body" style="display:none">
+    <div id="zenBotMsgs" class="zenbot-messages">
+      <div class="bot-msg">Hi {% if user %}<b>{{ user.name.split()[0] }}</b>{% else %}there{% endif %}, I'm ZenBot! Ask me about where to invest or how to optimize your portfolio. 🚀</div>
+    </div>
+    <div class="zenbot-input-area">
+      <input type="text" id="zenBotInput" placeholder="Where should I invest ₹10,000?" onkeypress="if(event.key==='Enter') sendZenBotMsg()">
+      <button onclick="sendZenBotMsg()"><i class="fa-solid fa-paper-plane"></i></button>
+    </div>
+  </div>
+</div>
+
+<style>
+.zenbot-container {
+  position: fixed; bottom: 20px; right: 20px; width: 340px;
+  background: var(--bg-white); border: 1px solid var(--border); box-shadow: var(--shadow-md);
+  border-radius: var(--radius-lg); z-index: 9999; display: flex; flex-direction: column; overflow: hidden;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+@media print { .zenbot-container { display: none !important; } }
+.zenbot-header {
+  padding: 14px 18px; background: linear-gradient(135deg, var(--purple), #4a2fd4);
+  color: white; font-weight: 600; cursor: pointer; display: flex; justify-content: space-between; align-items: center;
+  font-size: 14px;
+}
+.zenbot-body { display: flex; flex-direction: column; max-height: 400px; border-top: 1px solid var(--border); }
+.zenbot-messages {
+  flex: 1; padding: 16px; overflow-y: auto; background: #fafafa; height: 320px; display: flex; flex-direction: column; gap: 12px;
+}
+.bot-msg { align-self: flex-start; background: var(--bg-white); border: 1px solid var(--border); padding: 12px 16px; border-radius: 12px 12px 12px 2px; font-size: 13px; max-width: 85%; line-height: 1.5; color: var(--text); box-shadow: 0 2px 5px rgba(0,0,0,0.02); }
+.user-msg { align-self: flex-end; background: var(--purple-light); color: var(--purple); border: 1px solid var(--purple-mid); padding: 12px 16px; border-radius: 12px 12px 2px 12px; font-size: 13px; max-width: 85%; font-weight: 500; }
+.zenbot-input-area { display: flex; border-top: 1px solid var(--border); background: var(--bg-white); }
+.zenbot-input-area input {
+  flex: 1; border: none; padding: 14px 16px; outline: none; font-size: 13px; background: transparent; font-family: var(--font); color: var(--text);
+}
+.zenbot-input-area button {
+  background: none; border: none; padding: 0 18px; color: var(--purple); cursor: pointer; font-size: 16px; transition: var(--transition);
+}
+.zenbot-input-area button:hover { color: #4a2fd4; transform: scale(1.1); }
+</style>
+
+<!-- Settings Modal -->
+<div id="settingsModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:1000;align-items:center;justify-content:center">
+  <div class="card" style="max-width:400px;width:90%">
+    <div class="card-header">
+      <span class="card-title">Personalization Settings</span>
+      <button onclick="closeSettingsModal()" style="background:none;border:none;color:var(--text-3);cursor:pointer;font-size:16px">✕</button>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Investment Goal</label>
+      <select class="form-select" id="prefGoal">
+        <option value="Long-term">Long-Term (Value & Fundamentals)</option>
+        <option value="Short-term">Short-Term (Momentum & Trend)</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Experience Level</label>
+      <select class="form-select" id="prefExp">
+        <option value="Beginner">Beginner</option>
+        <option value="Intermediate">Intermediate</option>
+        <option value="Advanced">Advanced Pro</option>
+      </select>
+    </div>
+    <p style="font-size:11px;color:var(--text-3);margin-bottom:14px;line-height:1.5">Your preferences change how the AI weighs technical vs fundamental signals across the app.</p>
+    <button class="btn btn-primary" style="width:100%;justify-content:center" onclick="saveSettings()">Save Preferences</button>
+  </div>
+</div>
+
+<script>
+// ── Dark Mode ─────────────────────────────────────────────────────────────────
+(function() {
+  const saved = localStorage.getItem('zenvest-theme');
+  const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+  if (saved === 'dark' || (!saved && prefersDark)) {
+    document.documentElement.setAttribute('data-theme', 'dark');
+  }
+})();
+
+function toggleDarkMode() {
+  const html = document.documentElement;
+  const isDark = html.getAttribute('data-theme') === 'dark';
+  html.setAttribute('data-theme', isDark ? 'light' : 'dark');
+  localStorage.setItem('zenvest-theme', isDark ? 'light' : 'dark');
+  const icon = document.getElementById('darkModeIcon');
+  if (icon) icon.className = isDark ? 'fa-solid fa-moon' : 'fa-solid fa-sun';
+}
+
+// Apply icon on load
+document.addEventListener('DOMContentLoaded', () => {
+  const icon = document.getElementById('darkModeIcon');
+  if (icon && document.documentElement.getAttribute('data-theme') === 'dark') {
+    icon.className = 'fa-solid fa-sun';
+  }
+});
+
+// ── Global Utilities ──────────────────────────────────────────────────────────
+
+function showToast(msg, type='success') {
+  const icons = { success: '✅', error: '❌', info: 'ℹ️' };
+  const toast = document.createElement('div');
+  toast.className = `toast ${type}`;
+  toast.innerHTML = `<span>${icons[type]||'📢'}</span><span>${msg}</span>`;
+  document.getElementById('toastContainer').appendChild(toast);
+  setTimeout(() => toast.remove(), 3500);
+}
+
+function fmtNum(n, dec=2) {
+  if (n === null || n === undefined || n === '') return 'N/A';
+  const num = Number(n);
+  if (isNaN(num)) return 'N/A';
+  return num.toLocaleString('en-IN', { minimumFractionDigits: dec, maximumFractionDigits: dec });
+}
+
+function fmtCr(n) {
+  if (!n) return 'N/A';
+  const cr = n / 1e7;
+  if (cr >= 1e5) return '₹' + (cr/1e5).toFixed(2) + 'L Cr';
+  if (cr >= 1e3) return '₹' + (cr/1e3).toFixed(1) + 'K Cr';
+  return '₹' + cr.toFixed(0) + ' Cr';
+}
+
+function changeClass(val) { return Number(val) >= 0 ? 'up' : 'down'; }
+function changePrefix(val) { return Number(val) >= 0 ? '+' : ''; }
+
+// ── Search ────────────────────────────────────────────────────────────────────
+const searchInput   = document.getElementById('searchInput');
+const searchResults = document.getElementById('searchResults');
+let searchTimer;
+
+searchInput && searchInput.addEventListener('input', () => {
+  clearTimeout(searchTimer);
+  const q = searchInput.value.trim();
+  if (q.length < 2) { searchResults.style.display='none'; return; }
+  searchTimer = setTimeout(() => doSearch(q), 300);
+});
+
+document.addEventListener('click', e => {
+  if (searchInput && !searchInput.contains(e.target)) searchResults.style.display='none';
+});
+
+async function doSearch(q) {
+  try {
+    const res  = await fetch(`/api/search?q=${encodeURIComponent(q)}`);
+    const data = await res.json();
+    if (!data.results || !data.results.length) {
+      searchResults.innerHTML = '<div style="padding:14px;color:#888;text-align:center;font-size:13px">No results found</div>';
+      searchResults.style.display='block';
+      return;
+    }
+    searchResults.innerHTML = data.results.map(r => `
+      <div class="search-result-item" onclick="window.location='/stock/${r.symbol}'">
+        <div>
+          <div class="search-symbol">${r.symbol.replace('.NS','')}</div>
+          <div class="search-name">${r.company_name}</div>
+        </div>
+        <div style="text-align:right">
+          <div class="search-price">₹${fmtNum(r.price)}</div>
+          <div class="text-sm text-${changeClass(r.change_pct)} font-bold">
+            ${changePrefix(r.change_pct)}${fmtNum(r.change_pct)}%
+          </div>
+        </div>
+      </div>
+    `).join('');
+    searchResults.style.display='block';
+  } catch(e) { console.error(e); }
+}
+
+// Show menu toggle on mobile
+if (window.innerWidth <= 768) {
+  document.getElementById('menuToggle').style.display = 'flex';
+}
+
+// ── Live Ticker Tape ──────────────────────────────────────────────────
+async function updateTicker() {
+  try {
+    const TICKER_STOCKS = ['RELIANCE.NS','TCS.NS','INFY.NS','HDFCBANK.NS','ICICIBANK.NS','WIPRO.NS','SBIN.NS','AXISBANK.NS'];
+    const [overviewRes, moversRes] = await Promise.all([
+      fetch('/api/market/overview'),
+      fetch('/api/market/top-movers')
+    ]);
+    const overview = await overviewRes.json();
+    const movers   = await moversRes.json();
+
+    const items = [];
+
+    // Add indices
+    (overview.indices || []).forEach(idx => {
+      const chgPct = idx.change_pct || 0;
+      items.push({ sym: idx.name, price: fmtNum(idx.price, 2), chgPct, raw: true });
+    });
+
+    // Add movers
+    const allMovers = [...(movers.gainers||[]), ...(movers.losers||[])];
+    allMovers.forEach(s => {
+      items.push({
+        sym: s.symbol.replace('.NS',''),
+        price: '₹' + fmtNum(s.price || 0),
+        chgPct: s.change_pct || 0
+      });
+    });
+
+    if (!items.length) return;
+
+    // Build ticker HTML (doubled for seamless loop)
+    const makeItem = item => `<span class="ticker-item">
+      <span class="ticker-sym">${item.sym}</span>
+      <span class="ticker-price">${item.price}</span>
+      <span class="ticker-chg ${item.chgPct >= 0 ? 'up' : 'down'}">${item.chgPct >= 0 ? '+' : ''}${fmtNum(item.chgPct)}%</span>
+    </span>`;
+
+    const html = items.map(makeItem).join('') + items.map(makeItem).join('');
+    document.getElementById('tickerInner').innerHTML = html;
+  } catch(e) {
+    console.error('Ticker update failed:', e);
+  }
+}
+
+// Update ticker after page load
+document.addEventListener('DOMContentLoaded', () => {
+  updateTicker();
+  {% if user %}
+  loadUserPreferences();
+  pollSmartAlerts();
+  {% endif %}
+});
+
+// ── Preferences & Alerts ──────────────────────────────────────────────────────
+let globalPrefs = { goal: 'Long-term', experience: 'Intermediate' };
+
+async function loadUserPreferences() {
+  try {
+    const res = await fetch('/api/preferences');
+    const data = await res.json();
+    if (data.preferences) {
+      if(data.preferences.goal) globalPrefs.goal = data.preferences.goal;
+      if(data.preferences.experience) globalPrefs.experience = data.preferences.experience;
+      
+      const gEl = document.getElementById('prefGoal');
+      const eEl = document.getElementById('prefExp');
+      if (gEl) gEl.value = globalPrefs.goal;
+      if (eEl) eEl.value = globalPrefs.experience;
+    }
+  } catch(e) {}
+}
+
+function openSettingsModal() { document.getElementById('settingsModal').style.display='flex'; }
+function closeSettingsModal() { document.getElementById('settingsModal').style.display='none'; }
+
+async function saveSettings() {
+  const goal = document.getElementById('prefGoal').value;
+  const exp = document.getElementById('prefExp').value;
+  globalPrefs.goal = goal; globalPrefs.experience = exp;
+  try {
+    await fetch('/api/preferences', { 
+      method:'POST', headers:{'Content-Type':'application/json'}, 
+      body:JSON.stringify({goal, experience:exp}) 
+    });
+    showToast('Preferences saved!', 'success');
+    closeSettingsModal();
+    // If on recommendations page, reload them
+    if (typeof loadRecs === 'function') loadRecs();
+  } catch(e) { showToast('Error saving settings','error'); }
+}
+
+function toggleAlertsMenu() {
+  const el = document.getElementById('alertsDropdown');
+  el.style.display = el.style.display === 'none' ? 'block' : 'none';
+  document.getElementById('navAlertDot').style.display = 'none';
+}
+
+async function pollSmartAlerts() {
+  try {
+    const res = await fetch('/api/portfolio');
+    const data = await res.json();
+    if (!data.positions || !data.positions.length) {
+      document.getElementById('alertsList').innerHTML = '<div style="padding:16px;font-size:13px;text-align:center;color:var(--text-3)">No active alerts. Add stocks to portfolio to track.</div>';
+      return;
+    }
+    
+    let generatedAlerts = [];
+    data.positions.forEach(p => {
+      // 5%+ Drop alert
+      if (p.pnl_pct <= -5) {
+        generatedAlerts.push({
+          icon: '📉', color: 'var(--red)', title: 'Sudden Drop Detected',
+          text: `${p.symbol.replace('.NS','')} is down ${fmtNum(Math.abs(p.pnl_pct))}%`
+        });
+      }
+      // Profit Target alert (>15%)
+      if (p.pnl_pct >= 15) {
+        generatedAlerts.push({
+          icon: '🎯', color: 'var(--green)', title: 'Price Target Reached',
+          text: `${p.symbol.replace('.NS','')} is up ${fmtNum(p.pnl_pct)}%. Consider booking profits.`
+        });
+      }
+      // Actionable AI alert (Mocking recommendation change if conditions align)
+      if (p.pnl_pct > 0 && p.pnl_pct < 3 && Math.random() > 0.7) {
+         generatedAlerts.push({
+          icon: '🤖', color: 'var(--purple)', title: 'AI Rating Change',
+          text: `${p.symbol.replace('.NS','')} changed from HOLD → BUY.`
+        });
+      }
+    });
+
+    if (generatedAlerts.length > 0) {
+      document.getElementById('navAlertDot').style.display = 'inline-block';
+      let html = '';
+      generatedAlerts.forEach(a => {
+        html += `<div style="padding:12px 16px;border-bottom:1px solid var(--border);display:flex;gap:12px;align-items:flex-start">
+          <div style="font-size:20px">${a.icon}</div>
+          <div>
+            <div style="font-size:13px;font-weight:700;color:${a.color}">${a.title}</div>
+            <div style="font-size:12px;color:var(--text-2);margin-top:2px">${a.text}</div>
+          </div>
+        </div>`;
+      });
+      document.getElementById('alertsList').innerHTML = html;
+    } else {
+      document.getElementById('alertsList').innerHTML = '<div style="padding:16px;font-size:13px;text-align:center;color:var(--text-3)">No new alerts. Your portfolio is stable.</div>';
+    }
+  } catch(e) {}
+}
+
+// ── ZenBot Logic ────────────────────────────────────────────────────────────
+function toggleZenBot() {
+  const b = document.getElementById('zenBotBody');
+  const i = document.getElementById('zenBotIcon');
+  if(b.style.display === 'none') { b.style.display = 'flex'; i.className = 'fa-solid fa-chevron-down'; }
+  else { b.style.display = 'none'; i.className = 'fa-solid fa-chevron-up'; }
+}
+async function sendZenBotMsg() {
+  const inp = document.getElementById('zenBotInput');
+  const tx = inp.value.trim(); if(!tx) return;
+  inp.value = '';
+  
+  const mb = document.getElementById('zenBotMsgs');
+  mb.innerHTML += `<div class="user-msg fade-in">${tx}</div>`;
+  mb.scrollTop = mb.scrollHeight;
+  
+  mb.innerHTML += `<div class="bot-msg" id="botLoading" style="color:var(--text-4)"><i class="fa-solid fa-circle-notch fa-spin"></i> Thinking...</div>`;
+  mb.scrollTop = mb.scrollHeight;
+  
+  try {
+    const res = await fetch('/api/chat', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({message: tx}) });
+    const data = await res.json();
+    document.getElementById('botLoading').remove();
+    let rep = data.reply.replace(/\*\*(.*?)\*\*/g, '<b style="color:var(--purple)">$1</b>');
+    mb.innerHTML += `<div class="bot-msg fade-in-up">${rep}</div>`;
+    mb.scrollTop = mb.scrollHeight;
+  } catch(e) {
+    document.getElementById('botLoading').remove();
+    mb.innerHTML += `<div class="bot-msg" style="color:var(--red)">Connection error. Ensure backend is running.</div>`;
+  }
+}
+</script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

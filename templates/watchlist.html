@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+{% block title %}My Watchlist — Zenvest{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1 class="page-title">Personal <span>Watchlist</span></h1>
+  <p class="page-subtitle">Stocks you are tracking for potential opportunities</p>
+</div>
+
+<div class="card mb-20">
+  <div id="watchlistContent">
+    <div class="table-wrap" id="watchlistTableWrap" style="display:none">
+      <table>
+        <thead>
+          <tr>
+            <th>Symbol</th>
+            <th>Company</th>
+            <th>Last Price</th>
+            <th>Day Change</th>
+            <th style="text-align:right">Action</th>
+          </tr>
+        </thead>
+        <tbody id="watchlistBody"></tbody>
+      </table>
+    </div>
+    
+    <div id="watchlistEmpty" style="display:none" class="empty-state">
+      <div class="empty-icon">⭐</div>
+      <div class="empty-title">Your watchlist is empty</div>
+      <p class="empty-sub">Add stocks from the stock detail page or search.</p>
+      <a href="/" class="btn btn-primary" style="margin-top:20px">Explore Markets</a>
+    </div>
+
+    <div id="watchlistLoading">
+      {% for i in range(5) %}
+      <div class="skeleton mb-8" style="height:50px;border-radius:8px"></div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function loadWatchlist() {
+  const tableWrap = document.getElementById('watchlistTableWrap');
+  const emptyState = document.getElementById('watchlistEmpty');
+  const loader = document.getElementById('watchlistLoading');
+  const tbody = document.getElementById('watchlistBody');
+
+  try {
+    const res = await fetch('/api/watchlist');
+    const data = await res.json();
+    
+    loader.style.display = 'none';
+
+    if (!data.results || data.results.length === 0) {
+      emptyState.style.display = 'flex';
+      tableWrap.style.display = 'none';
+      return;
+    }
+
+    emptyState.style.display = 'none';
+    tableWrap.style.display = 'block';
+
+    tbody.innerHTML = data.results.map(item => `
+      <tr onclick="if(event.target.tagName !== 'BUTTON') window.location='/stock/${item.symbol}'">
+        <td><span class="td-sym">${item.symbol.replace('.NS','')}</span></td>
+        <td><div style="font-weight:500">${item.company_name}</div></td>
+        <td><div style="font-weight:600">₹${fmtNum(item.price)}</div></td>
+        <td><span class="td-${changeClass(item.change_pct)}">${changePrefix(item.change_pct)}${fmtNum(item.change_pct)}%</span></td>
+        <td style="text-align:right">
+          <button class="btn btn-danger btn-sm" onclick="removeFromWatchlist(${item.id}, '${item.symbol}')">
+            <i class="fa-solid fa-trash-can"></i>
+          </button>
+        </td>
+      </tr>
+    `).join('');
+
+  } catch (e) {
+    loader.style.display = 'none';
+    showToast('Failed to load watchlist', 'error');
+  }
+}
+
+async function removeFromWatchlist(id, sym) {
+  if (!confirm(`Remove ${sym} from watchlist?`)) return;
+  try {
+    const res = await fetch(`/api/watchlist/${id}`, { method: 'DELETE' });
+    const data = await res.json();
+    if (data.status === 'deleted') {
+      showToast(`${sym} removed from watchlist`, 'info');
+      loadWatchlist();
+    }
+  } catch(e) {
+    showToast('Failed to remove item', 'error');
+  }
+}
+
+document.addEventListener('DOMContentLoaded', loadWatchlist);
+</script>
+{% endblock %}

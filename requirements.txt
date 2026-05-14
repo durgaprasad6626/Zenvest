@@ -1,0 +1,13 @@
+flask
+flask-cors
+yfinance
+pandas
+numpy
+requests
+supabase
+python-dotenv
+resend
+bcrypt
+PyJWT
+google-generativeai
+APScheduler

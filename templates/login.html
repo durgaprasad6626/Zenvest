@@ -1,0 +1,752 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sign In — Zenvest</title>
+  <meta name="description" content="Sign in or create your Zenvest account">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: var(--font); min-height: 100vh; overflow: hidden; }
+
+    /* ── Full-Page Premium Background ── */
+    .auth-bg {
+      min-height: 100vh;
+      display: flex;
+      background: linear-gradient(135deg, #0a0a1a 0%, #0d1b3e 30%, #0a2444 60%, #061428 100%);
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* Animated ambient orbs */
+    .auth-bg::before {
+      content: '';
+      position: absolute;
+      width: 600px; height: 600px;
+      background: radial-gradient(circle, rgba(108,71,255,0.15) 0%, transparent 70%);
+      top: -200px; left: -200px;
+      animation: orb1 8s ease-in-out infinite;
+    }
+    .auth-bg::after {
+      content: '';
+      position: absolute;
+      width: 500px; height: 500px;
+      background: radial-gradient(circle, rgba(0,179,134,0.1) 0%, transparent 70%);
+      bottom: -150px; right: -150px;
+      animation: orb2 10s ease-in-out infinite;
+    }
+    @keyframes orb1 { 0%,100%{transform:translate(0,0)scale(1)} 50%{transform:translate(60px,40px)scale(1.1)} }
+    @keyframes orb2 { 0%,100%{transform:translate(0,0)scale(1)} 50%{transform:translate(-40px,-60px)scale(1.15)} }
+
+    /* Left panel */
+    .auth-left {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: flex-start;
+      padding: 60px 80px;
+      position: relative;
+      z-index: 1;
+    }
+    @media (max-width: 900px) { .auth-left { display: none; } }
+
+    .auth-brand-logo {
+      width: 200px;
+      margin-bottom: 60px;
+      filter: drop-shadow(0 0 20px rgba(108,71,255,0.4));
+    }
+
+    .auth-hero-title {
+      font-size: 42px;
+      font-weight: 800;
+      line-height: 1.2;
+      color: #fff;
+      margin-bottom: 20px;
+      letter-spacing: -1px;
+    }
+    .auth-hero-title span { 
+      background: linear-gradient(135deg, #6c47ff, #00b386);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .auth-hero-sub {
+      font-size: 16px;
+      color: rgba(255,255,255,0.5);
+      line-height: 1.7;
+      max-width: 420px;
+    }
+
+    /* Feature pills */
+    .feature-pills { display: flex; flex-direction: column; gap: 16px; margin-top: 48px; }
+    .feature-pill {
+      display: flex; align-items: center; gap: 14px;
+      padding: 14px 20px;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 12px;
+      backdrop-filter: blur(10px);
+    }
+    .feature-pill-icon {
+      width: 36px; height: 36px;
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 16px;
+    }
+    .feature-pill-icon.purple { background: rgba(108,71,255,0.2); }
+    .feature-pill-icon.green  { background: rgba(0,179,134,0.2); }
+    .feature-pill-icon.blue   { background: rgba(59,130,246,0.2); }
+    .feature-pill-text { font-size: 13px; color: rgba(255,255,255,0.7); font-weight: 500; }
+
+    /* Right panel - Glassmorphism card */
+    .auth-right {
+      width: 520px;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 40px 30px;
+      position: relative;
+      z-index: 1;
+    }
+    @media (max-width: 900px) { .auth-right { width: 100%; } }
+
+    .auth-glass-card {
+      width: 100%;
+      max-width: 440px;
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 24px;
+      padding: 40px 36px;
+      backdrop-filter: blur(20px) saturate(180%);
+      -webkit-backdrop-filter: blur(20px) saturate(180%);
+      box-shadow: 0 25px 50px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255,255,255,0.05) inset;
+    }
+
+    /* Logo area inside card */
+    .card-logo {
+      display: flex; align-items: center; gap: 12px;
+      margin-bottom: 28px;
+    }
+    .card-logo img {
+      height: 40px;
+      filter: drop-shadow(0 0 10px rgba(108,71,255,0.5));
+    }
+    .card-logo-text { font-size: 22px; font-weight: 800; color: #fff; }
+    .card-logo-text span { 
+      background: linear-gradient(135deg, #6c47ff, #00b386);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    /* Tabs */
+    .glass-tabs {
+      display: flex;
+      background: rgba(255,255,255,0.05);
+      border-radius: 12px;
+      padding: 4px;
+      margin-bottom: 28px;
+    }
+    .glass-tab {
+      flex: 1; padding: 10px; border: none;
+      background: none; border-radius: 10px;
+      font-family: var(--font); font-size: 13px; font-weight: 600;
+      color: rgba(255,255,255,0.45); cursor: pointer;
+      transition: all 0.25s ease;
+    }
+    .glass-tab.active {
+      background: rgba(108,71,255,0.35);
+      color: #fff;
+      box-shadow: 0 2px 12px rgba(108,71,255,0.3);
+    }
+
+    /* Form inputs */
+    .glass-form-label {
+      display: block; font-size: 11px; font-weight: 600;
+      color: rgba(255,255,255,0.5); margin-bottom: 6px;
+      text-transform: uppercase; letter-spacing: 0.8px;
+    }
+    .glass-form-input {
+      width: 100%; background: rgba(255,255,255,0.07);
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 10px; padding: 12px 14px;
+      font-family: var(--font); font-size: 14px;
+      color: #fff; outline: none;
+      transition: all 0.2s ease;
+    }
+    .glass-form-input::placeholder { color: rgba(255,255,255,0.25); }
+    .glass-form-input:focus {
+      border-color: rgba(108,71,255,0.6);
+      background: rgba(108,71,255,0.08);
+      box-shadow: 0 0 0 3px rgba(108,71,255,0.15);
+    }
+
+    /* Premium glassy submit button */
+    .glass-btn-primary {
+      width: 100%; padding: 13px;
+      background: linear-gradient(135deg, rgba(108,71,255,0.9), rgba(70,40,200,0.9));
+      border: 1px solid rgba(108,71,255,0.6);
+      border-radius: 12px; color: #fff;
+      font-family: var(--font); font-size: 14px; font-weight: 700;
+      cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;
+      transition: all 0.3s cubic-bezier(0.4,0,0.2,1);
+      backdrop-filter: blur(10px);
+      box-shadow: 0 4px 20px rgba(108,71,255,0.4), inset 0 1px 0 rgba(255,255,255,0.2);
+      position: relative; overflow: hidden;
+      margin-top: 6px;
+    }
+    .glass-btn-primary::after {
+      content: '';
+      position: absolute; top: 0; left: -100%; width: 100%; height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent);
+      transition: 0.5s;
+    }
+    .glass-btn-primary:hover { 
+      transform: translateY(-2px);
+      box-shadow: 0 8px 30px rgba(108,71,255,0.6), inset 0 1px 0 rgba(255,255,255,0.25);
+    }
+    .glass-btn-primary:hover::after { left: 100%; }
+    .glass-btn-primary:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+
+    /* Divider */
+    .glass-divider {
+      display: flex; align-items: center; gap: 12px;
+      margin: 20px 0; color: rgba(255,255,255,0.2); font-size: 12px;
+    }
+    .glass-divider::before, .glass-divider::after {
+      content: ''; flex: 1; height: 1px;
+      background: rgba(255,255,255,0.1);
+    }
+
+    /* Alert boxes */
+    .glass-alert-error {
+      display: none; background: rgba(232,73,72,0.15);
+      border: 1px solid rgba(232,73,72,0.3); border-radius: 8px;
+      padding: 10px 14px; font-size: 12px; color: #ff6b6b;
+      margin-bottom: 14px;
+    }
+    .glass-alert-success {
+      display: none; background: rgba(0,179,134,0.15);
+      border: 1px solid rgba(0,179,134,0.3); border-radius: 8px;
+      padding: 10px 14px; font-size: 12px; color: #00c9a0;
+      margin-bottom: 14px;
+    }
+
+    /* OTP boxes */
+    .otp-row { display: flex; gap: 8px; justify-content: center; margin: 16px 0; }
+    .otp-box {
+      width: 48px; height: 54px; text-align: center;
+      font-size: 22px; font-weight: 700;
+      background: rgba(255,255,255,0.07);
+      border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 10px; color: #fff; outline: none;
+      transition: all 0.2s ease;
+    }
+    .otp-box:focus {
+      border-color: rgba(108,71,255,0.7);
+      background: rgba(108,71,255,0.1);
+      box-shadow: 0 0 0 3px rgba(108,71,255,0.2);
+    }
+
+    /* Step indicator */
+    .step-indicator { display: flex; align-items: center; margin-bottom: 24px; }
+    .step-dot {
+      width: 26px; height: 26px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 11px; font-weight: 700; flex-shrink: 0;
+      background: rgba(255,255,255,0.1); border: 1.5px solid rgba(255,255,255,0.15);
+      color: rgba(255,255,255,0.4); transition: all 0.3s ease;
+    }
+    .step-dot.active { background: rgba(108,71,255,0.5); border-color: rgba(108,71,255,0.8); color: #fff; }
+    .step-dot.done   { background: rgba(0,179,134,0.4); border-color: rgba(0,179,134,0.8); color: #fff; }
+    .step-line { flex: 1; height: 1px; background: rgba(255,255,255,0.1); transition: all 0.3s; }
+    .step-line.done { background: rgba(0,179,134,0.5); }
+
+    /* Select styled */
+    .glass-form-select {
+      width: 100%; background: rgba(255,255,255,0.07);
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 10px; padding: 12px 14px;
+      font-family: var(--font); font-size: 14px;
+      color: #fff; outline: none;
+      transition: all 0.2s ease; appearance: none;
+    }
+    .glass-form-select:focus {
+      border-color: rgba(108,71,255,0.6);
+      background: rgba(108,71,255,0.08);
+    }
+    .glass-form-select option { background: #1a1a2e; color: #fff; }
+
+    /* Form row grid */
+    .glass-form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+    /* Resend/timer */
+    .resend-row { text-align: center; font-size: 12px; color: rgba(255,255,255,0.4); margin-top: 12px; }
+    .resend-link { color: #a78bfa; cursor: pointer; font-weight: 600; }
+    .resend-link:hover { text-decoration: underline; }
+
+    /* Password strength */
+    .pwd-strength { height: 3px; border-radius: 99px; background: rgba(255,255,255,0.08); margin-top: 6px; overflow: hidden; }
+    .pwd-strength-bar { height: 100%; border-radius: 99px; width: 0; transition: width 0.3s, background 0.3s; }
+
+    /* Password toggle */
+    .pwd-wrap { position: relative; }
+    .pwd-toggle { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); cursor: pointer; color: rgba(255,255,255,0.3); font-size: 13px; }
+    .pwd-toggle:hover { color: rgba(255,255,255,0.7); }
+
+    /* Form group */
+    .glass-form-group { margin-bottom: 14px; }
+
+    /* Footer link */
+    .auth-footer { text-align: center; margin-top: 20px; font-size: 11px; color: rgba(255,255,255,0.25); }
+    .auth-footer a { color: rgba(108,71,255,0.8); }
+
+    /* Forgot link */
+    .forgot-link {
+      display: block; text-align: center; font-size: 12px;
+      color: rgba(255,255,255,0.35); margin-top: 10px;
+      cursor: pointer; transition: color 0.2s;
+    }
+    .forgot-link:hover { color: #a78bfa; }
+  </style>
+</head>
+<body>
+<div class="auth-bg">
+
+  <!-- Left Hero Panel -->
+  <div class="auth-left">
+    <div id="auth-logo-left" style="display:flex;align-items:center;gap:12px;margin-bottom:60px">
+      <div style="width:50px;height:50px;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:26px;font-weight:900;color:#fff;box-shadow:0 0 30px rgba(108,71,255,0.3);background:none;">
+        <img src="{{ url_for('static', filename='images/zenvest-logo.png') }}" style="width: 50px; height: 50px; border-radius: 12px; object-fit: cover;">
+      </div>
+      <div style="font-size:28px;font-weight:800;color:#fff">Zen<span style="color:var(--purple)">vest</span></div>
+    </div>
+
+    <h1 class="auth-hero-title">
+      Invest with<br><span>AI Intelligence</span>
+    </h1>
+    <p class="auth-hero-sub">
+      Get real-time AI predictions, fundamentals analysis, and personalized stock recommendations — all in one platform.
+    </p>
+
+    <div class="feature-pills">
+      <div class="feature-pill">
+        <div class="feature-pill-icon purple"><i class="fa-solid fa-robot" style="color:#a78bfa"></i></div>
+        <div class="feature-pill-text">AI-powered buy/sell recommendations</div>
+      </div>
+      <div class="feature-pill">
+        <div class="feature-pill-icon green"><i class="fa-solid fa-chart-line" style="color:#34d399"></i></div>
+        <div class="feature-pill-text">Real-time Nifty 50 market intelligence</div>
+      </div>
+      <div class="feature-pill">
+        <div class="feature-pill-icon blue"><i class="fa-solid fa-shield-halved" style="color:#60a5fa"></i></div>
+        <div class="feature-pill-text">Risk-adjusted portfolio tracking</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Right Glass Card -->
+  <div class="auth-right">
+    <div class="auth-glass-card">
+
+      <!-- Card Logo -->
+      <div class="card-logo">
+        <div style="width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;color:white;background:none;">
+          <img src="{{ url_for('static', filename='images/zenvest-logo.png') }}" style="width: 36px; height: 36px; border-radius: 8px; object-fit: cover;">
+        </div>
+        <div class="card-logo-text">Zen<span>vest</span></div>
+      </div>
+
+      <!-- Tabs -->
+      <div class="glass-tabs">
+        <button class="glass-tab active" id="tabSignIn"  onclick="showTab('signin')">Sign In</button>
+        <button class="glass-tab"        id="tabRegister" onclick="showTab('register')">Create Account</button>
+      </div>
+
+      <!-- ─── SIGN IN PANEL ─── -->
+      <div id="panel-signin">
+        <div id="err-signin" class="glass-alert-error"></div>
+        <div id="ok-signin"  class="glass-alert-success"></div>
+
+        <div class="glass-form-group">
+          <label class="glass-form-label">Email Address</label>
+          <input class="glass-form-input" id="si-email" type="email" placeholder="you@example.com" autocomplete="email">
+        </div>
+        <div class="glass-form-group">
+          <label class="glass-form-label">Password</label>
+          <div class="pwd-wrap">
+            <input class="glass-form-input" id="si-password" type="password" placeholder="Your password" autocomplete="current-password">
+            <span class="pwd-toggle" onclick="togglePwd('si-password',this)"><i class="fa-solid fa-eye"></i></span>
+          </div>
+        </div>
+
+        <button class="glass-btn-primary" id="si-btn" onclick="doSignIn()">
+          <i class="fa-solid fa-right-to-bracket"></i> Sign In
+        </button>
+
+        <span class="forgot-link" onclick="showForgot()">Forgot password?</span>
+      </div>
+
+      <!-- ─── REGISTER PANEL ─── -->
+      <div id="panel-register" style="display:none">
+        <div class="step-indicator" id="reg-steps">
+          <div class="step-dot active" id="step-dot-1">1</div>
+          <div class="step-line"      id="step-line-1"></div>
+          <div class="step-dot"       id="step-dot-2">2</div>
+          <div class="step-line"      id="step-line-2"></div>
+          <div class="step-dot"       id="step-dot-3">3</div>
+        </div>
+
+        <div id="err-register" class="glass-alert-error"></div>
+        <div id="ok-register"  class="glass-alert-success"></div>
+
+        <!-- Step 1 -->
+        <div id="reg-step-1">
+          <div class="glass-form-group">
+            <label class="glass-form-label">Email Address</label>
+            <input class="glass-form-input" id="reg-email" type="email" placeholder="you@example.com">
+          </div>
+          <button class="glass-btn-primary" id="reg-s1-btn" onclick="doSendOTP()">
+            <i class="fa-solid fa-paper-plane"></i> Send Verification Code
+          </button>
+        </div>
+
+        <!-- Step 2 -->
+        <div id="reg-step-2" style="display:none">
+          <p style="font-size:12px;color:rgba(255,255,255,0.45);text-align:center;margin-bottom:8px">
+            Code sent to <strong id="reg-email-shown" style="color:#a78bfa"></strong>
+          </p>
+          <div class="otp-row">
+            <input class="otp-box" id="otp0" maxlength="1" type="text" inputmode="numeric">
+            <input class="otp-box" id="otp1" maxlength="1" type="text" inputmode="numeric">
+            <input class="otp-box" id="otp2" maxlength="1" type="text" inputmode="numeric">
+            <input class="otp-box" id="otp3" maxlength="1" type="text" inputmode="numeric">
+            <input class="otp-box" id="otp4" maxlength="1" type="text" inputmode="numeric">
+            <input class="otp-box" id="otp5" maxlength="1" type="text" inputmode="numeric">
+          </div>
+          <button class="glass-btn-primary" id="reg-s2-btn" onclick="doVerifyOTP('register')">
+            <i class="fa-solid fa-check"></i> Verify Code
+          </button>
+          <div class="resend-row">
+            <span id="reg-timer">Resend in <strong id="reg-countdown">60</strong>s</span>
+            <span id="reg-resend" style="display:none" class="resend-link" onclick="doSendOTP(true)">Resend code</span>
+          </div>
+        </div>
+
+        <!-- Step 3 -->
+        <div id="reg-step-3" style="display:none">
+          <div class="glass-form-row">
+            <div class="glass-form-group">
+              <label class="glass-form-label">Full Name</label>
+              <input class="glass-form-input" id="reg-name" placeholder="Your name">
+            </div>
+            <div class="glass-form-group">
+              <label class="glass-form-label">Risk Level</label>
+              <select class="glass-form-select" id="reg-risk">
+                <option value="Low">🛡️ Low</option>
+                <option value="Medium" selected>⚖️ Medium</option>
+                <option value="High">🚀 High</option>
+              </select>
+            </div>
+          </div>
+          <div class="glass-form-group">
+            <label class="glass-form-label">Monthly Budget (₹)</label>
+            <input class="glass-form-input" id="reg-budget" type="number" value="50000" step="5000">
+          </div>
+          <div class="glass-form-group">
+            <label class="glass-form-label">Password <span style="color:rgba(255,255,255,0.25);font-weight:400">(min 8 chars)</span></label>
+            <div class="pwd-wrap">
+              <input class="glass-form-input" id="reg-password" type="password" placeholder="Create strong password" oninput="checkPwdStrength(this.value)">
+              <span class="pwd-toggle" onclick="togglePwd('reg-password',this)"><i class="fa-solid fa-eye"></i></span>
+            </div>
+            <div class="pwd-strength"><div class="pwd-strength-bar" id="pwd-bar"></div></div>
+          </div>
+          <div class="glass-form-group">
+            <label class="glass-form-label">Confirm Password</label>
+            <div class="pwd-wrap">
+              <input class="glass-form-input" id="reg-confirm" type="password" placeholder="Repeat password">
+              <span class="pwd-toggle" onclick="togglePwd('reg-confirm',this)"><i class="fa-solid fa-eye"></i></span>
+            </div>
+          </div>
+          <button class="glass-btn-primary" id="reg-s3-btn" onclick="doRegister()">
+            <i class="fa-solid fa-user-plus"></i> Create Account
+          </button>
+        </div>
+      </div>
+
+      <!-- ─── FORGOT PASSWORD PANEL ─── -->
+      <div id="panel-forgot" style="display:none">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:20px;cursor:pointer;color:rgba(255,255,255,0.4);font-size:13px" onclick="showTab('signin')">
+          <i class="fa-solid fa-arrow-left"></i> Back to Sign In
+        </div>
+
+        <div id="err-forgot"  class="glass-alert-error"></div>
+        <div id="ok-forgot"   class="glass-alert-success"></div>
+
+        <!-- Forgot Step 1 -->
+        <div id="fp-step-1">
+          <p style="font-size:13px;color:rgba(255,255,255,0.45);margin-bottom:16px">Enter your email to receive a reset code.</p>
+          <div class="glass-form-group">
+            <label class="glass-form-label">Email Address</label>
+            <input class="glass-form-input" id="fp-email" type="email" placeholder="you@example.com">
+          </div>
+          <button class="glass-btn-primary" id="fp-s1-btn" onclick="doForgotSendOTP()">
+            <i class="fa-solid fa-paper-plane"></i> Send Reset Code
+          </button>
+        </div>
+
+        <!-- Forgot Step 2 OTP -->
+        <div id="fp-step-2" style="display:none">
+          <p style="font-size:12px;color:rgba(255,255,255,0.45);text-align:center;margin-bottom:8px">Code sent to <strong id="fp-email-shown" style="color:#a78bfa"></strong></p>
+          <div class="otp-row">
+            <input class="otp-box" id="fp-otp0" maxlength="1" type="text" inputmode="numeric">
+            <input class="otp-box" id="fp-otp1" maxlength="1" type="text" inputmode="numeric">
+            <input class="otp-box" id="fp-otp2" maxlength="1" type="text" inputmode="numeric">
+            <input class="otp-box" id="fp-otp3" maxlength="1" type="text" inputmode="numeric">
+            <input class="otp-box" id="fp-otp4" maxlength="1" type="text" inputmode="numeric">
+            <input class="otp-box" id="fp-otp5" maxlength="1" type="text" inputmode="numeric">
+          </div>
+          <button class="glass-btn-primary" id="fp-s2-btn" onclick="doVerifyOTP('forgot')">
+            <i class="fa-solid fa-check"></i> Verify Code
+          </button>
+          <div class="resend-row">
+            <span id="fp-timer">Resend in <strong id="fp-countdown">60</strong>s</span>
+            <span id="fp-resend" style="display:none" class="resend-link" onclick="doForgotSendOTP(true)">Resend code</span>
+          </div>
+        </div>
+
+        <!-- Forgot Step 3 -->
+        <div id="fp-step-3" style="display:none">
+          <div class="glass-form-group">
+            <label class="glass-form-label">New Password</label>
+            <div class="pwd-wrap">
+              <input class="glass-form-input" id="fp-password" type="password" placeholder="New password" oninput="checkPwdStrength(this.value,'fp-pwd-bar')">
+              <span class="pwd-toggle" onclick="togglePwd('fp-password',this)"><i class="fa-solid fa-eye"></i></span>
+            </div>
+            <div class="pwd-strength"><div class="pwd-strength-bar" id="fp-pwd-bar"></div></div>
+          </div>
+          <div class="glass-form-group">
+            <label class="glass-form-label">Confirm Password</label>
+            <div class="pwd-wrap">
+              <input class="glass-form-input" id="fp-confirm" type="password" placeholder="Repeat password">
+              <span class="pwd-toggle" onclick="togglePwd('fp-confirm',this)"><i class="fa-solid fa-eye"></i></span>
+            </div>
+          </div>
+          <button class="glass-btn-primary" id="fp-s3-btn" onclick="doResetPassword()">
+            <i class="fa-solid fa-lock"></i> Reset Password
+          </button>
+        </div>
+      </div>
+
+      <div class="auth-footer">By continuing you agree to our <a href="#">Terms of Service</a></div>
+    </div>
+  </div>
+</div>
+
+<script>
+let regEmail = '', fpEmail = '', regTimer = null, fpCountdown = null;
+
+function showTab(tab) {
+  document.getElementById('panel-signin').style.display   = tab === 'signin'   ? '' : 'none';
+  document.getElementById('panel-register').style.display = tab === 'register' ? '' : 'none';
+  document.getElementById('panel-forgot').style.display   = tab === 'forgot'   ? '' : 'none';
+  document.querySelectorAll('.glass-tab').forEach(b => b.classList.remove('active'));
+  if (tab === 'signin')   document.getElementById('tabSignIn').classList.add('active');
+  if (tab === 'register') document.getElementById('tabRegister').classList.add('active');
+}
+function showForgot() {
+  showTab('forgot');
+  document.querySelectorAll('.glass-tab').forEach(b => b.classList.remove('active'));
+}
+
+function showErr(id, msg)  { const el = document.getElementById(id); if(!el)return; el.style.display='block'; el.textContent=msg; const ok=document.getElementById(id.replace('err','ok')); if(ok) ok.style.display='none'; }
+function showOk(id, msg)   { const el = document.getElementById(id); if(!el)return; el.style.display='block'; el.textContent=msg; const err=document.getElementById(id.replace('ok','err')); if(err) err.style.display='none'; }
+function clearMsg(errId)   { const el=document.getElementById(errId); if(el) el.style.display='none'; const ok=document.getElementById(errId.replace('err','ok')); if(ok) ok.style.display='none'; }
+
+function setBtn(id, loading, label) {
+  const btn = document.getElementById(id); if(!btn)return;
+  btn.disabled = loading;
+  btn.innerHTML = loading ? '<i class="fa-solid fa-spinner fa-spin"></i> Processing...' : label;
+}
+
+function togglePwd(id, icon) {
+  const el = document.getElementById(id);
+  el.type = el.type === 'password' ? 'text' : 'password';
+  icon.innerHTML = el.type === 'password' ? '<i class="fa-solid fa-eye"></i>' : '<i class="fa-solid fa-eye-slash"></i>';
+}
+
+function checkPwdStrength(val, barId='pwd-bar') {
+  const bar = document.getElementById(barId); if(!bar) return;
+  const len=val.length, hasUpper=/[A-Z]/.test(val), hasNum=/\d/.test(val), hasSpec=/[^A-Za-z0-9]/.test(val);
+  let score=0;
+  if(len>=8) score++; if(len>=12) score++; if(hasUpper) score++; if(hasNum) score++; if(hasSpec) score++;
+  const colours=['','#e84948','#f59e0b','#f59e0b','#00b386','#00b386'];
+  const widths=['0%','20%','40%','60%','80%','100%'];
+  bar.style.width=widths[score]||'0%'; bar.style.background=colours[score]||'';
+}
+
+function initOTPBoxes(prefix) {
+  for(let i=0;i<6;i++){
+    const box = document.getElementById(prefix+i);
+    box.addEventListener('input', e => {
+      const val=e.target.value.replace(/\D/g,''); e.target.value=val.slice(-1);
+      if(val && i<5) document.getElementById(prefix+(i+1)).focus();
+    });
+    box.addEventListener('keydown', e => { if(e.key==='Backspace'&&!box.value&&i>0) document.getElementById(prefix+(i-1)).focus(); });
+    box.addEventListener('paste', e => {
+      e.preventDefault();
+      const pasted=(e.clipboardData||window.clipboardData).getData('text').replace(/\D/g,'');
+      for(let j=0;j<6&&j<pasted.length;j++) document.getElementById(prefix+j).value=pasted[j];
+      document.getElementById(prefix+Math.min(pasted.length-1,5)).focus();
+    });
+  }
+}
+function getOTP(prefix) { return Array.from({length:6},(_,i)=>document.getElementById(prefix+i).value).join(''); }
+function clearOTP(prefix) { for(let i=0;i<6;i++) document.getElementById(prefix+i).value=''; document.getElementById(prefix+'0').focus(); }
+
+function startCountdown(cdId, timerId, resendId, sec=60) {
+  let s=sec; document.getElementById(cdId).textContent=s;
+  document.getElementById(timerId).style.display='inline';
+  document.getElementById(resendId).style.display='none';
+  const iv=setInterval(()=>{
+    s--; document.getElementById(cdId).textContent=s;
+    if(s<=0){ clearInterval(iv); document.getElementById(timerId).style.display='none'; document.getElementById(resendId).style.display='inline'; }
+  },1000);
+  return iv;
+}
+
+function setRegStep(n) {
+  for(let i=1;i<=3;i++){
+    const dot=document.getElementById(`step-dot-${i}`);
+    dot.className='step-dot'+(i<n?' done':i===n?' active':'');
+    dot.innerHTML=i<n?'<i class="fa-solid fa-check" style="font-size:9px"></i>':i;
+    if(i<3) document.getElementById(`step-line-${i}`).className='step-line'+(i<n?' done':'');
+  }
+}
+
+async function doSignIn() {
+  const email=document.getElementById('si-email').value.trim();
+  const password=document.getElementById('si-password').value;
+  clearMsg('err-signin');
+  if(!email){showErr('err-signin','Please enter your email'); return;}
+  if(!password){showErr('err-signin','Please enter your password'); return;}
+  setBtn('si-btn',true,'');
+  try {
+    const res=await fetch('/api/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,password})});
+    const data=await res.json();
+    if(!res.ok){showErr('err-signin',data.error||'Sign in failed'); return;}
+    window.location='/';
+  } catch(e){ showErr('err-signin','Connection error. Please try again.'); }
+  finally { setBtn('si-btn',false,'<i class="fa-solid fa-right-to-bracket"></i> Sign In'); }
+}
+
+async function doSendOTP(isResend=false) {
+  const email=document.getElementById('reg-email').value.trim();
+  clearMsg('err-register');
+  if(!email){showErr('err-register','Please enter your email'); return;}
+  regEmail=email;
+  setBtn('reg-s1-btn',true,'');
+  try {
+    const res=await fetch('/api/auth/send-code',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,purpose:'register'})});
+    const data=await res.json();
+    if(!res.ok){showErr('err-register',data.error||'Failed to send code'); setBtn('reg-s1-btn',false,'<i class="fa-solid fa-paper-plane"></i> Send Verification Code'); return;}
+    document.getElementById('reg-email-shown').textContent=email;
+    document.getElementById('reg-step-1').style.display='none';
+    document.getElementById('reg-step-2').style.display='';
+    setRegStep(2); clearOTP('otp'); clearInterval(regTimer);
+    regTimer=startCountdown('reg-countdown','reg-timer','reg-resend');
+    if(isResend) showOk('ok-register','A new code has been sent.');
+  } catch(e){showErr('err-register','Connection error.');}
+  finally {setBtn('reg-s1-btn',false,'<i class="fa-solid fa-paper-plane"></i> Send Verification Code');}
+}
+
+async function doVerifyOTP(flow) {
+  const isReg=flow==='register';
+  const prefix=isReg?'otp':'fp-otp', errId=isReg?'err-register':'err-forgot';
+  const btnId=isReg?'reg-s2-btn':'fp-s2-btn', email=isReg?regEmail:fpEmail;
+  const step3=isReg?'reg-step-3':'fp-step-3', step2=isReg?'reg-step-2':'fp-step-2';
+  const code=getOTP(prefix);
+  clearMsg(errId);
+  if(code.length<6){showErr(errId,'Enter all 6 digits'); return;}
+  setBtn(btnId,true,'');
+  try {
+    const res=await fetch('/api/auth/verify-code',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,code,purpose:flow})});
+    const data=await res.json();
+    if(!res.ok){showErr(errId,data.error||'Invalid code'); setBtn(btnId,false,'<i class="fa-solid fa-check"></i> Verify Code'); return;}
+    document.getElementById(step2).style.display='none';
+    document.getElementById(step3).style.display='';
+    if(isReg) setRegStep(3);
+  } catch(e){showErr(errId,'Connection error.');}
+  finally {setBtn(btnId,false,'<i class="fa-solid fa-check"></i> Verify Code');}
+}
+
+async function doRegister() {
+  const name=document.getElementById('reg-name').value.trim();
+  const password=document.getElementById('reg-password').value;
+  const confirm=document.getElementById('reg-confirm').value;
+  const risk=document.getElementById('reg-risk').value;
+  const budget=document.getElementById('reg-budget').value;
+  clearMsg('err-register');
+  if(!name){showErr('err-register','Please enter your full name'); return;}
+  if(password.length<8){showErr('err-register','Password must be at least 8 characters'); return;}
+  if(password!==confirm){showErr('err-register','Passwords do not match'); return;}
+  setBtn('reg-s3-btn',true,'');
+  try {
+    const res=await fetch('/api/auth/register',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name,email:regEmail,password,risk_level:risk,budget})});
+    const data=await res.json();
+    if(!res.ok){showErr('err-register',data.error||'Registration failed'); return;}
+    window.location='/';
+  } catch(e){showErr('err-register','Connection error.');}
+  finally {setBtn('reg-s3-btn',false,'<i class="fa-solid fa-user-plus"></i> Create Account');}
+}
+
+async function doForgotSendOTP(isResend=false) {
+  const email=document.getElementById('fp-email').value.trim();
+  clearMsg('err-forgot');
+  if(!email){showErr('err-forgot','Please enter your email'); return;}
+  fpEmail=email;
+  setBtn('fp-s1-btn',true,'');
+  try {
+    const res=await fetch('/api/auth/send-code',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,purpose:'forgot'})});
+    const data=await res.json();
+    if(!res.ok){showErr('err-forgot',data.error||'Failed to send code'); setBtn('fp-s1-btn',false,'<i class="fa-solid fa-paper-plane"></i> Send Reset Code'); return;}
+    document.getElementById('fp-email-shown').textContent=email;
+    document.getElementById('fp-step-1').style.display='none';
+    document.getElementById('fp-step-2').style.display='';
+    clearOTP('fp-otp'); clearInterval(fpCountdown);
+    fpCountdown=startCountdown('fp-countdown','fp-timer','fp-resend');
+    if(isResend) showOk('ok-forgot','A new code has been sent.');
+  } catch(e){showErr('err-forgot','Connection error.');}
+  finally {setBtn('fp-s1-btn',false,'<i class="fa-solid fa-paper-plane"></i> Send Reset Code');}
+}
+
+async function doResetPassword() {
+  const password=document.getElementById('fp-password').value;
+  const confirm=document.getElementById('fp-confirm').value;
+  clearMsg('err-forgot');
+  if(password.length<8){showErr('err-forgot','Password must be at least 8 characters'); return;}
+  if(password!==confirm){showErr('err-forgot','Passwords do not match'); return;}
+  setBtn('fp-s3-btn',true,'');
+  try {
+    const res=await fetch('/api/auth/reset-password',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:fpEmail,password})});
+    const data=await res.json();
+    if(!res.ok){showErr('err-forgot',data.error||'Reset failed'); return;}
+    showOk('ok-forgot','✅ Password reset! Redirecting to sign in...');
+    setTimeout(()=>showTab('signin'),1800);
+  } catch(e){showErr('err-forgot','Connection error.');}
+  finally {setBtn('fp-s3-btn',false,'<i class="fa-solid fa-lock"></i> Reset Password');}
+}
+
+// Enter key support
+document.getElementById('si-password').addEventListener('keydown',e=>{if(e.key==='Enter')doSignIn();});
+document.getElementById('si-email').addEventListener('keydown',e=>{if(e.key==='Enter')doSignIn();});
+document.getElementById('reg-email').addEventListener('keydown',e=>{if(e.key==='Enter')doSendOTP();});
+document.getElementById('fp-email').addEventListener('keydown',e=>{if(e.key==='Enter')doForgotSendOTP();});
+
+initOTPBoxes('otp');
+initOTPBoxes('fp-otp');
+</script>
+</body>
+</html>

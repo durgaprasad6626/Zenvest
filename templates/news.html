@@ -1,0 +1,130 @@
+{% extends "base.html" %}
+{% block title %}Market News — Zenvest{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">
+    <div>
+      <h1 class="page-title">📰 Market <span>News</span></h1>
+      <p class="page-subtitle">AI-analyzed sentiment across Nifty 50 stocks — updated in real-time</p>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap" id="sentimentFilters">
+      <button class="btn btn-ghost btn-sm active-filter" onclick="filterNews('all',this)">🌐 All</button>
+      <button class="btn btn-ghost btn-sm" onclick="filterNews('Bullish',this)" style="color:var(--green)">📈 Bullish</button>
+      <button class="btn btn-ghost btn-sm" onclick="filterNews('Neutral',this)">⚖️ Neutral</button>
+      <button class="btn btn-ghost btn-sm" onclick="filterNews('Bearish',this)" style="color:var(--red)">📉 Bearish</button>
+    </div>
+  </div>
+</div>
+
+<!-- Sentiment Summary -->
+<div class="stat-grid mb-20" id="sentimentStats">
+  <div class="stat-card green skeleton" style="height:80px"></div>
+  <div class="stat-card orange skeleton" style="height:80px"></div>
+  <div class="stat-card red skeleton" style="height:80px"></div>
+</div>
+
+<!-- News Grid -->
+<div class="card">
+  <div class="card-header">
+    <span class="card-title">Latest Market Intelligence</span>
+    <span class="badge positive" id="newsCount"></span>
+  </div>
+  <div id="newsList" style="display:flex;flex-direction:column;gap:0">
+    {% for i in range(8) %}
+    <div class="skeleton mb-8" style="height:72px;border-radius:8px"></div>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let allNews = [];
+
+async function loadMarketNews() {
+  try {
+    const res = await fetch('/api/news/market');
+    const data = await res.json();
+    allNews = data.news || [];
+    renderNews(allNews);
+    renderSentimentStats(allNews);
+  } catch(e) {
+    document.getElementById('newsList').innerHTML =
+      '<div class="empty-state"><div class="empty-icon">⚠️</div><div class="empty-title">Failed to load news</div></div>';
+  }
+}
+
+function renderSentimentStats(news) {
+  const bullish = news.filter(n => (n.sentiment||'').toLowerCase() === 'bullish').length;
+  const bearish = news.filter(n => (n.sentiment||'').toLowerCase() === 'bearish').length;
+  const neutral  = news.length - bullish - bearish;
+  document.getElementById('sentimentStats').innerHTML = `
+    <div class="stat-card green fade-in">
+      <div class="stat-label">Bullish Articles</div>
+      <div class="stat-value" style="color:var(--green)">${bullish}</div>
+      <div class="stat-icon">📈</div>
+    </div>
+    <div class="stat-card orange fade-in">
+      <div class="stat-label">Neutral Articles</div>
+      <div class="stat-value" style="color:var(--orange)">${neutral}</div>
+      <div class="stat-icon">⚖️</div>
+    </div>
+    <div class="stat-card red fade-in">
+      <div class="stat-label">Bearish Articles</div>
+      <div class="stat-value" style="color:var(--red)">${bearish}</div>
+      <div class="stat-icon">📉</div>
+    </div>`;
+}
+
+function filterNews(sentiment, btn) {
+  document.querySelectorAll('#sentimentFilters .btn').forEach(b => b.classList.remove('active-filter'));
+  btn.classList.add('active-filter');
+  const filtered = sentiment === 'all' ? allNews : allNews.filter(n => (n.sentiment||'').toLowerCase() === sentiment.toLowerCase());
+  renderNews(filtered);
+}
+
+function renderNews(news) {
+  document.getElementById('newsCount').textContent = `${news.length} articles`;
+  if (!news.length) {
+    document.getElementById('newsList').innerHTML =
+      '<div class="empty-state"><div class="empty-icon">📰</div><div class="empty-title">No news found</div></div>';
+    return;
+  }
+  const sentColor = s => s==='Bullish'?'var(--green)':s==='Bearish'?'var(--red)':'var(--orange)';
+  document.getElementById('newsList').innerHTML = news.map((n, i) => `
+    <a href="${n.url||'#'}" target="_blank" rel="noopener" style="
+      display:flex;align-items:flex-start;gap:14px;
+      padding:14px 16px;
+      border-bottom:1px solid var(--border);
+      text-decoration:none;color:inherit;
+      transition:background 0.15s;
+    " onmouseover="this.style.background='var(--bg)'" onmouseout="this.style.background=''">
+      <div style="
+        width:4px;min-width:4px;height:100%;align-self:stretch;
+        border-radius:4px;background:${sentColor(n.sentiment||'Neutral')};
+        margin-top:2px;
+      "></div>
+      <div style="flex:1">
+        <div style="font-size:14px;font-weight:600;color:var(--text);line-height:1.5;margin-bottom:6px">
+          ${n.title||'—'}
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+          ${n.stock ? `<span style="font-size:11px;font-weight:700;color:var(--purple);background:var(--purple-light);padding:2px 8px;border-radius:99px">${n.stock}</span>` : ''}
+          <span class="badge ${(n.sentiment||'neutral').toLowerCase()}" style="font-size:10px">${n.sentiment||'Neutral'}</span>
+          ${n.publisher ? `<span style="font-size:11px;color:var(--text-4)">${n.publisher}</span>` : ''}
+          ${n.published_at ? `<span style="font-size:11px;color:var(--text-4)">${n.published_at}</span>` : ''}
+        </div>
+      </div>
+      <i class="fa-solid fa-arrow-up-right-from-square" style="font-size:12px;color:var(--text-4);margin-top:4px;flex-shrink:0"></i>
+    </a>
+  `).join('');
+}
+
+// Active filter style
+const style = document.createElement('style');
+style.textContent = '.active-filter{background:var(--purple-light)!important;color:var(--purple)!important;border-color:var(--purple-mid)!important;}';
+document.head.appendChild(style);
+
+document.addEventListener('DOMContentLoaded', loadMarketNews);
+</script>
+{% endblock %}

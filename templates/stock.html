@@ -1,0 +1,708 @@
+{% extends "base.html" %}
+{% block title %}{{ symbol }} — Zenvest{% endblock %}
+
+{% block content %}
+<!-- Stock Hero -->
+<div class="stock-hero mb-20" id="stockHero">
+  <div class="flex items-center justify-between" style="flex-wrap:wrap;gap:12px">
+    <div>
+      <div class="flex items-center gap-8" style="margin-bottom:4px">
+        <span class="stock-symbol" id="stockSymbolBadge">{{ symbol }}</span>
+        <span class="sector-tag" id="stockSector">Loading...</span>
+      </div>
+      <div class="stock-name" id="stockName">Loading...</div>
+      <div style="font-size:12px;color:var(--text-3);margin-top:3px" id="stockMeta">—</div>
+    </div>
+    <div style="text-align:right">
+      <div class="stock-price" id="stockPrice">₹—</div>
+      <div class="stock-change" id="stockChange">—</div>
+    </div>
+    <div class="flex gap-8">
+      <button class="btn btn-primary" id="btnAddPortfolio" onclick="openPortfolioModal()">
+        <i class="fa-solid fa-plus"></i> Add Portfolio
+      </button>
+      <button class="btn btn-outline" id="btnWatchlist" onclick="toggleWatchlist()">
+        <i class="fa-regular fa-star"></i> Watchlist
+      </button>
+      <button class="btn btn-ghost" onclick="window.location='/screener'">
+        <i class="fa-solid fa-filter"></i> Screener
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Key Metrics -->
+<div class="stat-grid mb-20" id="keyMetrics">
+  {% for i in range(6) %}<div class="stat-card skeleton" style="height:80px"></div>{% endfor %}
+</div>
+
+<!-- Backtester Timeline (Time Machine) -->
+<div class="card mb-20" style="background: linear-gradient(135deg, var(--purple-light), rgba(255,255,255,0)); border-color: var(--purple-mid)">
+  <div class="card-header" style="margin-bottom:8px">
+    <span class="card-title" style="color:var(--purple);font-size:16px">⏳ Time Machine Backtest</span>
+  </div>
+  <div style="font-size:12px;color:var(--text-3);margin-bottom:14px">See what your portfolio would look like if you invested in the past.</div>
+  
+  <div class="flex items-center gap-12" style="flex-wrap:wrap">
+    <div class="form-group" style="margin:0; width:160px">
+      <label class="form-label">Initial Investment (₹)</label>
+      <input type="number" id="btAmount" class="form-input" value="50000" step="5000">
+    </div>
+    <div class="form-group" style="margin:0; width:140px">
+      <label class="form-label">Timeframe</label>
+      <select id="btYears" class="form-select">
+        <option value="1">1 Year Ago</option>
+        <option value="3" selected>3 Years Ago</option>
+        <option value="5">5 Years Ago</option>
+      </select>
+    </div>
+    <div style="margin-top:22px">
+      <button class="btn btn-primary" onclick="runBacktest()">Run Simulation</button>
+    </div>
+  </div>
+  
+  <div id="btResult" style="display:none; margin-top:20px; padding:16px; background:var(--bg-white); border-radius:var(--radius); border:1px solid var(--border)"></div>
+</div>
+
+<!-- Chart + Prediction side by side -->
+<div class="grid-13 mb-20">
+  <!-- Chart -->
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">Interactive Chart</span>
+    </div>
+    <div class="chart-wrap-lg" style="height:480px; padding-bottom:10px; margin-top:8px">
+      <!-- TradingView Widget BEGIN -->
+      <div class="tradingview-widget-container" style="height:100%;width:100%">
+        <div id="tradingview_chart" style="height:100%;width:100%"></div>
+        <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
+        <script type="text/javascript">
+        new TradingView.widget({
+          "autosize": true,
+          "symbol": "NSE:{{ symbol.replace('.NS', '') }}",
+          "interval": "D",
+          "timezone": "Asia/Kolkata",
+          "theme": "light",
+          "style": "1",
+          "locale": "en",
+          "enable_publishing": false,
+          "hide_top_toolbar": false,
+          "hide_legend": false,
+          "save_image": false,
+          "container_id": "tradingview_chart",
+          "studies": [
+            "RSI@tv-basicstudies",
+            "MACD@tv-basicstudies",
+            "MASimple@tv-basicstudies"
+          ]
+        });
+        </script>
+      </div>
+      <!-- TradingView Widget END -->
+    </div>
+    <!-- Technical Indicators -->
+    <div id="technicals" style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:14px"></div>
+  </div>
+
+  <!-- AI Prediction -->
+  <div class="prediction-panel" id="predictionPanel">
+    <div class="flex items-center justify-between mb-12">
+      <div class="card-title" id="predictionPanelTitle">🤖 AI Prediction</div>
+      <span id="aiPoweredBadge" style="display:none;font-size:10px;font-weight:700;letter-spacing:0.6px;padding:3px 10px;border-radius:99px;background:linear-gradient(135deg,#6c47ff,#a78bfa);color:#fff">✦ GEMINI AI</span>
+    </div>
+    <div id="predictionContent">
+      <div style="text-align:center;padding:32px 0;color:var(--text-3)">
+        <div style="font-size:24px;margin-bottom:8px">🤖</div>
+        <div style="font-size:13px;font-weight:600">Gemini AI is analysing…</div>
+        <div style="font-size:11px;margin-top:4px;opacity:0.6">Reading fundamentals + technicals</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Fundamentals + News -->
+<div class="grid-12 mb-20">
+  <!-- Fundamentals -->
+  <div class="card">
+    <div class="card-header"><span class="card-title">Fundamentals</span></div>
+    <div id="fundamentalsTable">
+      <div class="skeleton" style="height:240px;border-radius:8px"></div>
+    </div>
+  </div>
+
+  <!-- News -->
+  <div class="card">
+    <div class="card-header"><span class="card-title">News & Sentiment</span></div>
+    <div id="stockNews">
+      {% for i in range(4) %}<div class="skeleton mb-8" style="height:60px;border-radius:8px"></div>{% endfor %}
+    </div>
+  </div>
+</div>
+
+<!-- Technical Indicators Panel -->
+<div class="card mb-20" id="techIndicatorsCard">
+  <div class="card-header">
+    <span class="card-title">📊 Technical Indicators</span>
+    <span class="badge" style="background:var(--purple-light);color:var(--purple);font-size:11px">RSI · MACD · Bollinger Bands</span>
+  </div>
+  <div id="techIndicators">
+    <div class="skeleton" style="height:120px;border-radius:10px"></div>
+  </div>
+
+  <!-- Charts Row -->
+  <div style="margin-top:20px;display:grid;grid-template-columns:1fr 1fr;gap:16px" id="techChartsRow" style="display:none">
+    <div>
+      <div style="font-size:11px;font-weight:600;color:var(--text-4);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:8px">RSI (14)</div>
+      <div style="height:120px"><canvas id="rsiChart"></canvas></div>
+    </div>
+    <div>
+      <div style="font-size:11px;font-weight:600;color:var(--text-4);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:8px">MACD (12,26,9)</div>
+      <div style="height:120px"><canvas id="macdChart"></canvas></div>
+    </div>
+  </div>
+
+  <!-- Bollinger Bands Chart -->
+  <div style="margin-top:16px" id="bbChartWrap" style="display:none">
+    <div style="font-size:11px;font-weight:600;color:var(--text-4);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:8px">Bollinger Bands (20, 2σ)</div>
+    <div style="height:180px"><canvas id="bbChart"></canvas></div>
+  </div>
+</div>
+
+
+<!-- Portfolio Modal -->
+<div id="portfolioModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:1000;align-items:center;justify-content:center">
+  <div class="card" style="max-width:380px;width:90%;margin:auto;box-shadow:0 8px 30px rgba(0,0,0,0.15)">
+    <div class="card-header">
+      <span class="card-title">Add to Portfolio</span>
+      <button onclick="closePortfolioModal()" style="background:none;border:none;color:var(--text-3);cursor:pointer;font-size:16px">✕</button>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Symbol</label>
+      <input class="form-input" id="modalSymbol" value="{{ symbol }}" readonly>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Quantity</label>
+      <input class="form-input" id="modalQty" type="number" value="1" min="1">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Buy Price (₹)</label>
+      <input class="form-input" id="modalPrice" type="number" step="0.01" placeholder="Enter price">
+    </div>
+    <div class="flex gap-8">
+      <button class="btn btn-ghost" style="flex:1;justify-content:center" onclick="closePortfolioModal()">Cancel</button>
+      <button class="btn btn-primary" style="flex:1;justify-content:center" onclick="addToPortfolio()">
+        <i class="fa-solid fa-plus"></i> Add Position
+      </button>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+const SYMBOL = '{{ symbol }}';
+let stockData = null;
+let priceChart = null;
+let allOHLCV = [];
+
+async function loadStockData() {
+  try {
+    // Load stock data and news in parallel, prediction separately (slower)
+    const [stockRes, newsRes] = await Promise.all([
+      fetch(`/api/stock/${SYMBOL}`),
+      fetch(`/api/stock/${SYMBOL}/news`)
+    ]);
+
+    stockData = await stockRes.json();
+    const newsData = await newsRes.json();
+
+    if (stockData.error) {
+      showToast(stockData.error, 'error');
+      return;
+    }
+
+    renderHero(stockData);
+    renderMetrics(stockData);
+    renderFundamentals(stockData);
+    renderNews(newsData.news || []);
+    allOHLCV = stockData.ohlcv || [];
+
+    // Load prediction separately (it's slower)
+    fetch(`/api/stock/${SYMBOL}/prediction`)
+      .then(r => r.json())
+      .then(pred => {
+        renderPrediction(pred);
+        renderTechnicals(allOHLCV.slice(-90));
+      })
+      .catch(() => {
+        document.getElementById('predictionContent').innerHTML =
+          '<div class="empty-state"><div class="empty-icon">⚠️</div><div class="empty-title">Could not load AI prediction</div></div>';
+      });
+
+  } catch(e) {
+    showToast('Failed to load stock data. Try again.', 'error');
+  }
+}
+
+function renderHero(d) {
+  document.getElementById('stockName').textContent    = d.company_name || SYMBOL;
+  document.getElementById('stockSector').textContent  = d.sector || 'Unknown';
+  document.getElementById('stockPrice').textContent   = '₹' + fmtNum(d.price || 0);
+  const chg = d.change_pct || 0;
+  const el = document.getElementById('stockChange');
+  el.textContent = `${changePrefix(chg)}${fmtNum(chg)}% today`;
+  el.className = `stock-change ${changeClass(chg)}`;
+  document.getElementById('stockMeta').textContent =
+    `${d.sector||''} • ${d.industry||''} • Vol: ${fmtNum(d.volume/1000,0)}K`;
+  if (document.getElementById('modalPrice')) document.getElementById('modalPrice').value = d.price || '';
+}
+
+function renderMetrics(d) {
+  const metrics = [
+    { label: 'Market Cap',  val: fmtCr(d.market_cap),           color:'purple' },
+    { label: 'PE Ratio',    val: fmtNum(d.pe_ratio,1) + 'x',    color:'orange' },
+    { label: 'PB Ratio',    val: fmtNum(d.pb_ratio,2) + 'x',    color:'purple' },
+    { label: 'ROE',         val: fmtNum(d.roe,1) + '%',          color:'green'  },
+    { label: '52W High',    val: '₹' + fmtNum(d.week_52_high),   color:'green'  },
+    { label: '52W Low',     val: '₹' + fmtNum(d.week_52_low),    color:'red'    }
+  ];
+  document.getElementById('keyMetrics').innerHTML = metrics.map(m => `
+    <div class="stat-card ${m.color} fade-in">
+      <div class="stat-label">${m.label}</div>
+      <div class="stat-value" style="font-size:17px">${m.val}</div>
+    </div>
+  `).join('');
+}
+
+function renderFundamentals(d) {
+  const rows = [
+    ['EPS',            d.eps,           x => '₹'+fmtNum(x)],
+    ['PE Ratio',       d.pe_ratio,      x => fmtNum(x,1)+'x'],
+    ['PB Ratio',       d.pb_ratio,      x => fmtNum(x,2)+'x'],
+    ['ROE',            d.roe,           x => fmtNum(x,1)+'%'],
+    ['D/E Ratio',      d.debt_to_equity,x => fmtNum(x,2)+'x'],
+    ['Rev Growth',     d.revenue_growth,x => `<span class="td-${changeClass(x)}">${changePrefix(x)}${fmtNum(x,1)}%</span>`],
+    ['Profit Growth',  d.profit_growth, x => `<span class="td-${changeClass(x)}">${changePrefix(x)}${fmtNum(x,1)}%</span>`],
+    ['Div Yield',      d.dividend_yield,x => fmtNum(x,2)+'%'],
+    ['Beta',           d.beta,          x => fmtNum(x,2)],
+    ['Avg Volume',     d.avg_volume,    x => fmtNum(x/1000,0)+'K'],
+  ];
+  document.getElementById('fundamentalsTable').innerHTML = `
+    <div class="fund-grid">
+      ${rows.map(([label, val, fmt]) => `
+        <div class="fund-row">
+          <span class="fund-label">${label}</span>
+          <span class="fund-value">${(val !== null && val !== undefined && val !== 0) ? fmt(val) : '<span style="color:var(--text-4)">N/A</span>'}</span>
+        </div>
+      `).join('')}
+    </div>
+    ${d.description ? `<div style="margin-top:14px;font-size:12px;color:var(--text-3);line-height:1.6">${d.description}…</div>` : ''}
+  `;
+}
+
+function renderPrediction(pred) {
+  // Show correct panel title + Gemini badge
+  const titleEl = document.getElementById('predictionPanelTitle');
+  const badgeEl = document.getElementById('aiPoweredBadge');
+  if (pred.ai_powered) {
+    if (titleEl) titleEl.textContent = '🤖 Gemini AI Analysis';
+    if (badgeEl) badgeEl.style.display = 'inline-block';
+  } else {
+    if (titleEl) titleEl.textContent = '📊 Smart Analysis';
+    if (badgeEl) badgeEl.style.display = 'none';
+  }
+
+  if (pred.error) {
+    document.getElementById('predictionContent').innerHTML =
+      `<div class="empty-state"><div class="empty-icon">⚠️</div><div class="empty-title">${pred.error}</div></div>`;
+    return;
+  }
+  const score = pred.score || 50;
+  const r = pred.recommendation || 'HOLD';
+  const signals = pred.signals || [];
+  const circ = 2 * Math.PI * 44;
+  const filled = circ * (1 - score / 100);
+
+  document.getElementById('predictionContent').innerHTML = `
+    <div style="text-align:center;margin-bottom:14px">
+      <div class="score-meter">
+        <svg width="110" height="110" viewBox="0 0 110 110">
+          <circle cx="55" cy="55" r="44" fill="none" stroke="#f0f0f0" stroke-width="9"/>
+          <circle cx="55" cy="55" r="44" fill="none"
+            stroke="${r==='BUY'?'var(--green)':r==='SELL'?'var(--red)':'var(--orange)'}"
+            stroke-width="9" stroke-linecap="round"
+            stroke-dasharray="${circ}"
+            stroke-dashoffset="${circ}"
+            id="scoreFill"/>
+        </svg>
+        <div class="score-label">
+          <div class="score-number">${score}</div>
+          <div class="score-text">AI SCORE</div>
+        </div>
+      </div>
+      <div class="rec-badge ${r.toLowerCase()}" style="margin:0 auto;display:inline-flex">
+        ${r === 'BUY' ? '▲' : r === 'SELL' ? '▼' : '●'} ${r}
+      </div>
+      <div style="margin-top:8px;font-size:16px;font-weight:700;color:var(--purple)">${pred.expected_growth_label||''}</div>
+      <div style="font-size:11px;color:var(--text-3);margin-top:4px">
+        Confidence: <b style="color:var(--text)">${pred.confidence||'Medium'}</b>
+        <span style="opacity:0.8">(${pred.confidence_reason||'signals are moderately clear'})</span>
+      </div>
+      <div style="font-size:13px;font-weight:600;color:var(--text);margin-top:10px;padding-top:8px;border-top:1px solid var(--border)">
+        Why? <span style="font-weight:400;color:var(--text-2);font-style:italic">${pred.summary||'Mixed signals.'}</span>
+      </div>
+    </div>
+
+    <div style="margin-top:14px">
+      <div style="font-size:10px;font-weight:600;color:var(--text-4);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:8px">Signal Breakdown</div>
+      ${signals.map(s => {
+        const impact = s.impact || 'Neutral';
+        const cls = impact.includes('Positive') ? 'positive' : (impact.includes('Negative') ? 'negative' : 'neutral');
+        return `<div class="signal-row">
+          <div class="signal-name">${s.name}</div>
+          <div class="signal-bar"><div class="signal-bar-fill ${cls}" style="width:${s.score}%"></div></div>
+          <div class="signal-value">${s.value}</div>
+        </div>`;
+      }).join('')}
+    </div>
+  `;
+
+  setTimeout(() => {
+    const el = document.getElementById('scoreFill');
+    if (el) el.style.strokeDashoffset = filled;
+  }, 300);
+}
+
+function renderTechnicals(ohlcv) {
+  if (!ohlcv || ohlcv.length < 14) { document.getElementById('technicals').innerHTML=''; return; }
+  const closes = ohlcv.map(o => o.close);
+  const rsi  = calcRSI(closes, 14);
+  const ma20 = calcSMA(closes, 20);
+  const ma50 = calcSMA(closes, 50);
+  const last = closes[closes.length - 1];
+
+  const rsiSignal = rsi > 70 ? 'Overbought' : rsi < 30 ? 'Oversold' : 'Neutral';
+  const rsiColor  = rsi > 70 ? 'var(--red)' : rsi < 30 ? 'var(--green)' : 'var(--orange)';
+
+  document.getElementById('technicals').innerHTML = [
+    { label: 'RSI (14)', val: fmtNum(rsi, 1), sub: rsiSignal, color: rsiColor },
+    { label: '20-Day MA', val: '₹'+fmtNum(ma20), sub: last > ma20 ? '▲ Above' : '▼ Below', color: last > ma20 ? 'var(--green)' : 'var(--red)' },
+    { label: '50-Day MA', val: '₹'+fmtNum(ma50), sub: last > ma50 ? '▲ Above' : '▼ Below', color: last > ma50 ? 'var(--green)' : 'var(--red)' }
+  ].map(t => `
+    <div style="background:var(--bg);border-radius:8px;padding:10px;text-align:center">
+      <div style="font-size:10px;color:var(--text-3);text-transform:uppercase;letter-spacing:0.5px">${t.label}</div>
+      <div style="font-size:15px;font-weight:700;margin:4px 0">${t.val}</div>
+      <div style="font-size:11px;font-weight:600;color:${t.color}">${t.sub}</div>
+    </div>
+  `).join('');
+}
+
+function calcRSI(closes, period=14) {
+  if (closes.length <= period) return 50;
+  let gains=0, losses=0;
+  for (let i=1; i<=period; i++) {
+    const diff = closes[closes.length-period+i-1] - closes[closes.length-period+i-2];
+    diff > 0 ? gains += diff : losses -= diff;
+  }
+  const rs = gains/losses || 0;
+  return Math.round((100 - 100/(1+rs)) * 100) / 100;
+}
+
+function calcSMA(closes, period) {
+  if (closes.length < period) return closes[closes.length-1] || 0;
+  const slice = closes.slice(-period);
+  return Math.round(slice.reduce((a,b) => a+b, 0) / period * 100) / 100;
+}
+
+
+function renderNews(news) {
+  document.getElementById('stockNews').innerHTML = (news.slice(0, 8)).map(n => `
+    <a href="${n.url||'#'}" target="_blank" rel="noopener" class="news-card fade-in">
+      <div style="flex:1">
+        <div class="news-title">${n.title||''}</div>
+        <div class="news-meta">
+          <span class="badge ${(n.sentiment||'Neutral').toLowerCase()}">${n.sentiment||'Neutral'}</span>
+          <span class="news-publisher">${n.publisher||''}</span>
+          <span>${n.published_at||''}</span>
+        </div>
+      </div>
+    </a>
+  `).join('') || '<div class="empty-state"><div class="empty-icon">📰</div><div class="empty-title">No news found</div></div>';
+}
+
+// Portfolio Modal
+function openPortfolioModal() {
+  {% if not user %}
+  showToast('Please sign in to add to portfolio', 'info');
+  window.location = '/login';
+  return;
+  {% endif %}
+  document.getElementById('portfolioModal').style.display = 'flex';
+}
+function closePortfolioModal() {
+  document.getElementById('portfolioModal').style.display = 'none';
+}
+async function addToPortfolio() {
+  const qty   = parseInt(document.getElementById('modalQty').value) || 1;
+  const price = parseFloat(document.getElementById('modalPrice').value);
+  if (!price) { showToast('Enter a valid buy price', 'error'); return; }
+  try {
+    const res = await fetch('/api/portfolio', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ symbol: SYMBOL, quantity: qty, buy_price: price })
+    });
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+    showToast(`${SYMBOL} added to portfolio ✅`, 'success');
+    closePortfolioModal();
+  } catch(e) {
+    showToast(e.message || 'Failed to add', 'error');
+  }
+}
+
+// Watchlist logic
+let inWatchlist = false;
+async function checkWatchlist() {
+  {% if user %}
+  try {
+    const res = await fetch('/api/watchlist');
+    const data = await res.json();
+    const item = (data.watchlist || []).find(w => w.symbol === SYMBOL);
+    if (item) {
+      inWatchlist = true;
+      updateWatchlistUI(true, item.id);
+    }
+  } catch(e) {}
+  {% endif %}
+}
+
+function updateWatchlistUI(active, id=null) {
+  const btn = document.getElementById('btnWatchlist');
+  if (active) {
+    btn.innerHTML = '<i class="fa-solid fa-star"></i> Saved';
+    btn.classList.add('active');
+    btn.onclick = () => removeFromWatchlist(id);
+  } else {
+    btn.innerHTML = '<i class="fa-regular fa-star"></i> Watchlist';
+    btn.classList.remove('active');
+    btn.onclick = toggleWatchlist;
+  }
+}
+
+async function toggleWatchlist() {
+  {% if not user %}
+  showToast('Please sign in to use watchlist', 'info');
+  window.location = '/login';
+  return;
+  {% endif %}
+  
+  try {
+    const res = await fetch('/api/watchlist', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ symbol: SYMBOL })
+    });
+    const data = await res.json();
+    if (data.status === 'added' || data.status === 'already exists') {
+      showToast(`${SYMBOL} added to watchlist`, 'success');
+      checkWatchlist(); // Refresh to get the ID for removal
+    }
+  } catch(e) { showToast('Action failed', 'error'); }
+}
+
+async function removeFromWatchlist(id) {
+  try {
+    const res = await fetch(`/api/watchlist/${id}`, { method: 'DELETE' });
+    const data = await res.json();
+    if (data.status === 'deleted') {
+      showToast(`${SYMBOL} removed from watchlist`, 'info');
+      updateWatchlistUI(false);
+    }
+  } catch(e) { showToast('Action failed', 'error'); }
+}
+
+async function runBacktest() {
+  const yrs = document.getElementById('btYears').value;
+  const amt = document.getElementById('btAmount').value;
+  const resBox = document.getElementById('btResult');
+  resBox.style.display = 'block';
+  resBox.innerHTML = '<div class="skeleton" style="height:60px"></div>';
+  try {
+    const res = await fetch(`/api/backtest/${SYMBOL}?years=${yrs}&amount=${amt}`);
+    const data = await res.json();
+    if(data.error) throw new Error(data.error);
+    
+    resBox.innerHTML = `
+      <div class="grid-3 fade-in" style="text-align:center">
+        <div>
+          <div style="font-size:12px;color:var(--text-3)">Invested on ${data.past_date}</div>
+          <div style="font-size:16px;font-weight:700">₹${fmtNum(data.initial_amount)}</div>
+        </div>
+        <div>
+          <div style="font-size:12px;color:var(--text-3)">Simulated Value Today</div>
+          <div style="font-size:22px;font-weight:800;color:${data.profit >= 0 ? 'var(--green)' : 'var(--red)'}">₹${fmtNum(data.final_amount)}</div>
+        </div>
+        <div>
+          <div style="font-size:12px;color:var(--text-3)">Total ROI</div>
+          <div style="font-size:16px;font-weight:700;color:${data.profit >= 0 ? 'var(--green)' : 'var(--red)'}">${data.profit >= 0 ? '+' : ''}${fmtNum(data.roi_pct, 2)}%</div>
+          <div style="font-size:11px;font-weight:500;color:${data.profit >= 0 ? 'var(--green)' : 'var(--red)'}">${data.profit >= 0 ? '+' : ''}₹${fmtNum(data.profit)}</div>
+        </div>
+      </div>
+    `;
+  } catch (e) {
+    resBox.innerHTML = `<div style="color:var(--red);font-size:13px"><i class="fa-solid fa-circle-exclamation"></i> ${e.message}</div>`;
+  }
+}
+
+// ── Technical Indicators ──────────────────────────────────────────────────
+let rsiChartInst = null, macdChartInst = null, bbChartInst = null;
+
+async function loadTechnicals() {
+  const sym = window.location.pathname.split('/').pop();
+  try {
+    const res = await fetch(`/api/stock/${sym}/technicals`);
+    const data = await res.json();
+    if (data.error) {
+      document.getElementById('techIndicators').innerHTML =
+        `<div style="color:var(--text-3);font-size:13px;padding:12px">Technical data unavailable: ${data.error}</div>`;
+      return;
+    }
+    const l   = data.latest || {};
+    const rsi = l.rsi;
+    const macd = l.macd, macdSig = l.macd_signal;
+    const bbU = l.bb_upper, bbL = l.bb_lower, price = l.close;
+
+    // RSI signal
+    let rsiColor = 'var(--orange)', rsiLabel = 'Neutral';
+    if (rsi !== null) {
+      if (rsi >= 70) { rsiColor = 'var(--red)';   rsiLabel = 'Overbought'; }
+      else if (rsi <= 30) { rsiColor = 'var(--green)'; rsiLabel = 'Oversold'; }
+    }
+    // MACD signal
+    let macdLabel = 'Neutral', macdColor = 'var(--orange)';
+    if (macd !== null && macdSig !== null) {
+      if (macd > macdSig) { macdLabel = 'Bullish'; macdColor = 'var(--green)'; }
+      else { macdLabel = 'Bearish'; macdColor = 'var(--red)'; }
+    }
+    // BB signal
+    let bbLabel = 'Inside Band', bbColor = 'var(--text-2)';
+    if (bbU && bbL && price) {
+      if (price >= bbU) { bbLabel = 'Above Upper'; bbColor = 'var(--red)'; }
+      else if (price <= bbL) { bbLabel = 'Below Lower'; bbColor = 'var(--green)'; }
+    }
+
+    document.getElementById('techIndicators').innerHTML = `
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px">
+        <div style="background:var(--bg);border-radius:10px;padding:14px;border-left:4px solid ${rsiColor}">
+          <div style="font-size:11px;color:var(--text-4);font-weight:600;text-transform:uppercase;letter-spacing:0.8px">RSI (14)</div>
+          <div style="font-size:26px;font-weight:800;color:${rsiColor};margin:4px 0">${rsi !== null ? rsi : '—'}</div>
+          <div style="font-size:11px;font-weight:600;color:${rsiColor};background:${rsiColor}1a;border-radius:99px;padding:2px 8px;display:inline-block">${rsiLabel}</div>
+          <div style="margin-top:8px;background:var(--border);border-radius:4px;height:6px;overflow:hidden">
+            <div style="width:${rsi||50}%;height:100%;background:${rsiColor};border-radius:4px"></div>
+          </div>
+          <div style="display:flex;justify-content:space-between;font-size:9px;color:var(--text-4);margin-top:2px"><span>0</span><span>30</span><span>70</span><span>100</span></div>
+        </div>
+        <div style="background:var(--bg);border-radius:10px;padding:14px;border-left:4px solid ${macdColor}">
+          <div style="font-size:11px;color:var(--text-4);font-weight:600;text-transform:uppercase;letter-spacing:0.8px">MACD</div>
+          <div style="font-size:20px;font-weight:800;color:${macdColor};margin:4px 0">${macd !== null ? macd : '—'}</div>
+          <div style="font-size:11px;color:var(--text-3)">Signal: ${macdSig !== null ? macdSig : '—'}</div>
+          <div style="margin-top:8px">
+            <span style="font-size:11px;font-weight:700;color:${macdColor};background:${macdColor}1a;border-radius:99px;padding:3px 10px">${macdLabel}</span>
+          </div>
+        </div>
+        <div style="background:var(--bg);border-radius:10px;padding:14px;border-left:4px solid ${bbColor}">
+          <div style="font-size:11px;color:var(--text-4);font-weight:600;text-transform:uppercase;letter-spacing:0.8px">Bollinger Bands</div>
+          <div style="font-size:12px;color:var(--text-3);margin:6px 0">Upper: <b>₹${bbU ? fmtNum(bbU) : '—'}</b></div>
+          <div style="font-size:12px;color:var(--text-3)">Lower: <b>₹${bbL ? fmtNum(bbL) : '—'}</b></div>
+          <div style="margin-top:8px">
+            <span style="font-size:11px;font-weight:700;color:${bbColor};background:${bbColor}1a;border-radius:99px;padding:3px 10px">${bbLabel}</span>
+          </div>
+        </div>
+      </div>`;
+
+    // Show charts
+    document.getElementById('techChartsRow').style.display = 'grid';
+    document.getElementById('bbChartWrap').style.display = 'block';
+    const dates = data.dates || [];
+    const thin  = (arr, n=60) => arr.slice(-n);
+
+    // RSI Chart
+    const rsiCtx = document.getElementById('rsiChart').getContext('2d');
+    if (rsiChartInst) rsiChartInst.destroy();
+    rsiChartInst = new Chart(rsiCtx, {
+      type:'line',
+      data:{ labels: thin(dates), datasets:[{
+        label:'RSI', data: thin(data.rsi),
+        borderColor:'#f59e0b', borderWidth:1.5, pointRadius:0, fill:false, tension:0.3
+      }]},
+      options:{ responsive:true, maintainAspectRatio:false,
+        plugins:{ legend:{display:false},
+          annotation:{ annotations:{
+            ob:{ type:'line', yMin:70, yMax:70, borderColor:'rgba(255,79,78,0.4)', borderWidth:1, borderDash:[4,4] },
+            os:{ type:'line', yMin:30, yMax:30, borderColor:'rgba(0,200,150,0.4)', borderWidth:1, borderDash:[4,4] }
+          }}
+        },
+        scales:{ x:{display:false}, y:{ min:0, max:100, ticks:{color:'#aaa',font:{size:10}} } }
+      }
+    });
+
+    // MACD Chart
+    const macdCtx = document.getElementById('macdChart').getContext('2d');
+    if (macdChartInst) macdChartInst.destroy();
+    macdChartInst = new Chart(macdCtx, {
+      type:'bar',
+      data:{ labels: thin(dates), datasets:[
+        { label:'MACD Hist', data: thin(data.macd_hist),
+          backgroundColor: thin(data.macd_hist).map(v => v >= 0 ? 'rgba(0,200,150,0.7)' : 'rgba(255,79,78,0.7)'),
+          borderWidth:0 },
+        { label:'MACD', data: thin(data.macd), type:'line',
+          borderColor:'#6c47ff', borderWidth:1.5, pointRadius:0, fill:false, tension:0.3 },
+        { label:'Signal', data: thin(data.macd_signal), type:'line',
+          borderColor:'#f59e0b', borderWidth:1.5, pointRadius:0, fill:false, tension:0.3, borderDash:[4,4] }
+      ]},
+      options:{ responsive:true, maintainAspectRatio:false,
+        plugins:{legend:{display:false}},
+        scales:{ x:{display:false}, y:{ ticks:{color:'#aaa',font:{size:10}} } }
+      }
+    });
+
+    // Bollinger Bands Chart
+    const bbCtx = document.getElementById('bbChart').getContext('2d');
+    if (bbChartInst) bbChartInst.destroy();
+    bbChartInst = new Chart(bbCtx, {
+      type:'line',
+      data:{ labels: thin(dates), datasets:[
+        { label:'BB Upper', data: thin(data.bb_upper),
+          borderColor:'rgba(255,79,78,0.5)', borderWidth:1, pointRadius:0,
+          fill:'+1', backgroundColor:'rgba(255,79,78,0.04)', borderDash:[4,4] },
+        { label:'Close', data: thin(data.close),
+          borderColor:'#6c47ff', borderWidth:2, pointRadius:0, fill:false, tension:0.3 },
+        { label:'BB Middle (SMA20)', data: thin(data.bb_middle),
+          borderColor:'rgba(245,158,11,0.5)', borderWidth:1, pointRadius:0,
+          fill:false, borderDash:[3,3] },
+        { label:'BB Lower', data: thin(data.bb_lower),
+          borderColor:'rgba(0,200,150,0.5)', borderWidth:1, pointRadius:0,
+          fill:false, borderDash:[4,4] }
+      ]},
+      options:{ responsive:true, maintainAspectRatio:false,
+        plugins:{legend:{position:'bottom',labels:{boxWidth:10,font:{size:10}}}},
+        scales:{ x:{ display:false }, y:{ ticks:{color:'#aaa',font:{size:10}, callback: v=>'₹'+fmtNum(v,0)} } }
+      }
+    });
+  } catch(e) {
+    console.error('Technicals error:', e);
+    document.getElementById('techIndicators').innerHTML =
+      '<div style="color:var(--text-3);font-size:13px;padding:12px">Failed to load technical data</div>';
+  }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  loadStockData();
+  checkWatchlist();
+  loadTechnicals();
+});
+</script>
+{% endblock %}
+

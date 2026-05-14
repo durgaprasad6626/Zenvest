@@ -1,0 +1,177 @@
+{% extends "base.html" %}
+{% block title %}AI Recommendations — Zenvest{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1 class="page-title">🤖 AI <span>Recommendations</span></h1>
+  <p class="page-subtitle">Personalized stock picks based on your risk profile and investment goals</p>
+</div>
+
+<!-- Risk Profile Setup -->
+<div class="card mb-24">
+  <div class="card-header"><span class="card-title">⚙️ Your Investment Profile</span></div>
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px">
+    <div class="form-group">
+      <label class="form-label">Risk Level</label>
+      <select class="form-select" id="riskLevel" onchange="loadRecs()">
+        <option value="Low">🛡️ Low Risk — Safe picks</option>
+        <option value="Medium" selected>⚖️ Medium Risk — Balanced</option>
+        <option value="High">🚀 High Risk — Growth focused</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Budget (₹)</label>
+      <input class="form-input" id="budget" type="number" value="50000" step="5000" onchange="loadRecs()">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Sector Preference</label>
+      <select class="form-select" id="sectorPref" onchange="loadRecs()">
+        <option value="">🌐 All Sectors</option>
+        <option value="Technology">💻 Technology</option>
+        <option value="Financial">🏦 Financial Services</option>
+        <option value="Healthcare">🏥 Healthcare</option>
+        <option value="Energy">⚡ Energy</option>
+        <option value="Consumer">🛍️ Consumer</option>
+        <option value="Industrials">🏭 Industrials</option>
+      </select>
+    </div>
+  </div>
+</div>
+
+<!-- Top 10 AI Picks -->
+<div class="card">
+  <div class="card-header">
+    <span class="card-title">🏆 Top Recommendations</span>
+    <div id="recStats" style="font-size:12px;color:var(--text-muted)"></div>
+  </div>
+  <div id="recsGrid" class="pick-cards">
+    {% for i in range(6) %}
+    <div class="pick-card skeleton" style="height:180px"></div>
+    {% endfor %}
+  </div>
+</div>
+
+<!-- Detail Table -->
+<div class="card mt-24">
+  <div class="card-header"><span class="card-title">📋 Detailed Analysis</span></div>
+  <div id="recsTable">
+    <div class="skeleton" style="height:300px;border-radius:8px"></div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function loadRecs() {
+  const risk   = document.getElementById('riskLevel').value;
+  const budget = document.getElementById('budget').value;
+  const sector = document.getElementById('sectorPref').value;
+
+  document.getElementById('recsGrid').innerHTML = [1,2,3,4,5,6].map(() =>
+    '<div class="pick-card skeleton" style="height:180px"></div>').join('');
+  document.getElementById('recsTable').innerHTML =
+    '<div class="skeleton" style="height:300px;border-radius:8px"></div>';
+
+  try {
+    const params = new URLSearchParams({ risk, budget, sector });
+    const res    = await fetch(`/api/recommendations?${params}`);
+    const data   = await res.json();
+    const recs   = data.recommendations || [];
+
+    document.getElementById('recStats').textContent = `${recs.length} stocks analyzed`;
+
+    // Cards
+    document.getElementById('recsGrid').innerHTML = recs.length ?
+      recs.map((r, i) => {
+        const isTop3 = i < 3;
+        const cardStyle = isTop3 
+          ? "border: 2px solid var(--purple); box-shadow: 0 10px 30px rgba(108,71,255,0.15); padding: 20px; transform: translateY(-4px);" 
+          : "padding: 14px;";
+        const crown = isTop3 ? `<div style="position:absolute; top:-12px; right:-10px; font-size:24px; filter:drop-shadow(0 2px 4px rgba(0,0,0,0.2)); z-index:10; animation: pulse 2s infinite">👑</div>` : '';
+        
+        let confColor = 'var(--text)';
+        if (r.confidence === 'High') confColor = 'var(--green)';
+        if (r.confidence === 'Low') confColor = 'var(--red)';
+
+        return `
+        <div class="pick-card fade-in-up" style="position:relative; animation-delay:${i*50}ms; ${cardStyle}" onclick="window.location='/stock/${r.symbol}'">
+          ${crown}
+          <div class="flex items-center justify-between">
+            <span class="pick-sym" style="font-size:${isTop3 ? '16px' : '14px'}">${(r.symbol||'').replace('.NS','')}</span>
+            <span class="badge ${(r.recommendation||'HOLD').toLowerCase()}">${r.recommendation||'HOLD'}</span>
+          </div>
+          <div class="pick-name" style="font-size:${isTop3 ? '12px' : '11px'}">${r.company_name||r.symbol||''}</div>
+          <div class="pick-price" style="font-size:${isTop3 ? '22px' : '17px'}; margin-bottom: 2px;">₹${fmtNum(r.price||0)}</div>
+          <div class="pick-growth">📈 ${r.expected_growth_label||'Analyzing...'}</div>
+          <div style="margin-top:12px">
+            <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text-muted);margin-bottom:4px">
+              <span>AI Score</span><span style="font-weight:700;color:var(--text)">${r.score||50}/100</span>
+            </div>
+            <div style="height:5px;background:var(--bg-secondary);border-radius:99px;overflow:hidden">
+              <div style="width:${r.score||50}%;height:100%;background:${(r.score||50)>=70?'var(--teal)':(r.score||50)>=45?'var(--gold)':'var(--crimson)'};border-radius:99px;transition:width 1s ease"></div>
+            </div>
+          </div>
+          <div style="font-size:11px;color:var(--text-muted);margin-top:10px">
+            Confidence: <b style="color:${confColor}">${r.confidence||'Medium'}</b> <span style="opacity:0.8">(${r.confidence_reason||'signals are clear'})</span>
+          </div>
+          <div style="font-size:11px;background:var(--bg-hover);padding:6px 8px;border-radius:6px;color:var(--text);border-left: 2px solid ${confColor};margin-top:8px;font-weight:500;overflow:hidden;text-overflow:ellipsis">
+             <span style="color:var(--text-2)">Why?</span> ${r.summary||'Mixed signals.'}
+          </div>
+        </div>
+      `;
+      }).join('') :
+      '<div class="empty-state"><div class="empty-icon">🤖</div><div class="empty-title">No recommendations found for this profile</div><div class="empty-sub">Try changing risk level or sector</div></div>';
+
+    // Detailed Table
+    document.getElementById('recsTable').innerHTML = recs.length ? `
+      <div class="table-wrap">
+        <table>
+          <thead><tr>
+            <th>#</th><th>Symbol</th><th>Company</th>
+            <th>AI Score</th><th>Rec</th>
+            <th>Expected Growth</th><th>Confidence</th><th>Action</th>
+          </tr></thead>
+          <tbody>
+            ${recs.map((r, i) => `
+              <tr>
+                <td style="color:var(--text-muted);font-size:12px">${i+1}</td>
+                <td class="td-sym" onclick="window.location='/stock/${r.symbol}'">${(r.symbol||'').replace('.NS','')}</td>
+                <td style="font-size:13px">${r.company_name||''}</td>
+                <td>
+                  <div style="display:flex;align-items:center;gap:6px">
+                    <div style="width:50px;height:5px;background:var(--bg-secondary);border-radius:99px;overflow:hidden">
+                      <div style="width:${r.score||50}%;height:100%;background:${(r.score||50)>=70?'var(--teal)':(r.score||50)>=45?'var(--gold)':'var(--crimson)'};border-radius:99px"></div>
+                    </div>
+                    <b>${r.score||50}</b>
+                  </div>
+                </td>
+                <td><span class="badge ${(r.recommendation||'HOLD').toLowerCase()}">${r.recommendation||'HOLD'}</span></td>
+                <td style="color:var(--gold);font-weight:600">${r.expected_growth_label||'—'}</td>
+                <td>
+                  <div style="font-size:13px;font-weight:600">${r.confidence||'Medium'}</div>
+                  <div style="font-size:11px;color:var(--text-muted);margin-top:2px;max-width:180px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${r.summary||''}">
+                    ${r.summary||''}
+                  </div>
+                </td>
+                <td>
+                  <button class="btn btn-outline btn-sm" onclick="window.location='/stock/${r.symbol}'">
+                    View <i class="fa-solid fa-arrow-right"></i>
+                  </button>
+                </td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </div>
+    ` : '';
+
+  } catch(e) {
+    showToast('Failed to load recommendations', 'error');
+    document.getElementById('recsGrid').innerHTML =
+      '<div class="empty-state"><div class="empty-icon">⚠️</div><div class="empty-title">Failed to load. Please try again.</div></div>';
+  }
+}
+
+document.addEventListener('DOMContentLoaded', loadRecs);
+</script>
+{% endblock %}

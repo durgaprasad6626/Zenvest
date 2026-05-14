@@ -1,0 +1,800 @@
+{% extends "base.html" %}
+{% block title %}Stock Screener — Zenvest{% endblock %}
+
+{% block head %}
+<style>
+/* ── Screener Premium Styles ── */
+.screener-hero {
+  background: linear-gradient(135deg, #0a0a1a 0%, #1a0d3e 50%, #0a1a2e 100%);
+  border-radius: 20px;
+  padding: 30px 28px;
+  margin-bottom: 24px;
+  position: relative;
+  overflow: hidden;
+  border: 1px solid rgba(108,71,255,0.2);
+}
+.screener-hero::before {
+  content: '';
+  position: absolute; top: -100px; right: -100px;
+  width: 300px; height: 300px;
+  background: radial-gradient(circle, rgba(108,71,255,0.15) 0%, transparent 70%);
+  pointer-events: none;
+}
+.screener-hero-title { font-size: 26px; font-weight: 800; color: #fff; margin-bottom: 6px; }
+.screener-hero-title span { background: linear-gradient(135deg,#6c47ff,#00b386); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
+.screener-hero-sub { font-size: 13px; color: rgba(255,255,255,0.45); }
+
+/* ── AI Quick Analysis Box ── */
+.ai-quick-box {
+  background: var(--bg-white);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 20px 22px;
+  margin-bottom: 24px;
+  position: relative;
+}
+.ai-quick-label {
+  font-size: 11px; font-weight: 700; color: var(--purple);
+  text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 12px;
+  display: flex; align-items: center; gap: 6px;
+}
+.ai-search-wrap {
+  display: flex; gap: 10px; align-items: center;
+}
+.ai-search-input {
+  flex: 1; padding: 12px 16px;
+  background: var(--bg);
+  border: 1.5px solid var(--border);
+  border-radius: 10px;
+  font-family: var(--font); font-size: 14px; color: var(--text);
+  outline: none; transition: all 0.2s;
+}
+.ai-search-input:focus { border-color: var(--purple); box-shadow: 0 0 0 3px var(--purple-light); }
+.ai-search-input::placeholder { color: var(--text-4); }
+
+.btn-ai-analyze {
+  padding: 12px 20px;
+  background: linear-gradient(135deg, #6c47ff, #4a2fd4);
+  color: white; border: none; border-radius: 10px;
+  font-family: var(--font); font-size: 13px; font-weight: 700;
+  cursor: pointer; display: flex; align-items: center; gap: 8px;
+  transition: all 0.3s ease; white-space: nowrap;
+  box-shadow: 0 4px 15px rgba(108,71,255,0.3);
+  position: relative; overflow: hidden;
+}
+.btn-ai-analyze::after {
+  content: ''; position: absolute; top: 0; left: -100%; width: 100%; height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+  transition: 0.5s;
+}
+.btn-ai-analyze:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(108,71,255,0.5); }
+.btn-ai-analyze:hover::after { left: 100%; }
+
+/* AI Result Card */
+.ai-result-card {
+  display: none;
+  margin-top: 18px;
+  background: linear-gradient(135deg, rgba(108,71,255,0.04), rgba(0,179,134,0.03));
+  border: 1px solid rgba(108,71,255,0.15);
+  border-radius: 14px;
+  padding: 20px 22px;
+  animation: slideIn 0.3s ease;
+}
+@keyframes slideIn { from{opacity:0;transform:translateY(-10px)} to{opacity:1;transform:translateY(0)} }
+
+.ai-result-header {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  gap: 16px; flex-wrap: wrap;
+}
+.ai-company-info .ai-company-name { font-size: 18px; font-weight: 800; color: var(--text); }
+.ai-company-info .ai-company-symbol { font-size: 12px; color: var(--text-3); margin-top: 2px; }
+.ai-price-info { text-align: right; }
+.ai-price-info .ai-price { font-size: 24px; font-weight: 800; color: var(--text); }
+.ai-price-info .ai-change { font-size: 13px; font-weight: 600; margin-top: 2px; }
+
+.ai-verdict {
+  display: flex; align-items: center; gap: 10px;
+  padding: 12px 16px;
+  border-radius: 10px;
+  margin: 16px 0;
+  font-weight: 700; font-size: 15px;
+}
+.ai-verdict.buy   { background: rgba(0,179,134,0.1); border:1px solid rgba(0,179,134,0.2); color: var(--green); }
+.ai-verdict.sell  { background: rgba(232,73,72,0.1);  border:1px solid rgba(232,73,72,0.2);  color: var(--red); }
+.ai-verdict.hold  { background: rgba(245,158,11,0.1); border:1px solid rgba(245,158,11,0.2); color: var(--orange); }
+
+.ai-metrics-mini {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+  gap: 10px; margin: 14px 0;
+}
+.ai-metric-item {
+  background: var(--bg-white);
+  border: 1px solid var(--border);
+  border-radius: 8px; padding: 10px 12px;
+  text-align: center;
+}
+.ai-metric-item .metric-label { font-size: 10px; color: var(--text-3); font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+.ai-metric-item .metric-value { font-size: 15px; font-weight: 700; color: var(--text); margin-top: 4px; }
+.ai-metric-item .metric-signal { font-size: 10px; font-weight: 600; margin-top: 2px; }
+.ai-metric-item .metric-signal.good  { color: var(--green); }
+.ai-metric-item .metric-signal.bad   { color: var(--red); }
+.ai-metric-item .metric-signal.ok    { color: var(--orange); }
+
+.ai-reasoning {
+  font-size: 12px; color: var(--text-2);
+  line-height: 1.7; margin-top: 10px;
+  padding: 12px 14px;
+  background: var(--bg);
+  border-radius: 8px;
+  border-left: 3px solid var(--purple);
+}
+
+/* ── Filter card ── */
+.filter-card {
+  background: var(--bg-white);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 22px;
+  margin-bottom: 24px;
+}
+.filter-card-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 18px; flex-wrap: wrap; gap: 10px;
+}
+.filter-card-title {
+  font-size: 14px; font-weight: 700; color: var(--text);
+  display: flex; align-items: center; gap: 8px;
+}
+.filter-card-actions { display: flex; gap: 8px; }
+
+.filter-grid-6 {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap: 14px;
+}
+.filter-item-label {
+  font-size: 10px; font-weight: 700; color: var(--text-3);
+  text-transform: uppercase; letter-spacing: 0.7px;
+  margin-bottom: 6px; display: flex; align-items: center; gap: 5px;
+}
+.filter-item-label .info-dot {
+  width: 16px; height: 16px; border-radius: 50%;
+  background: var(--purple-light); color: var(--purple);
+  font-size: 9px; display: inline-flex; align-items: center; justify-content: center;
+  cursor: help; font-weight: 800;
+}
+.filter-input-pair {
+  display: flex; gap: 6px;
+}
+.filter-input-pair select {
+  background: var(--bg); border: 1px solid var(--border);
+  border-radius: 8px; padding: 8px 10px;
+  font-family: var(--font); font-size: 12px; color: var(--text-2);
+  outline: none; flex-shrink: 0; cursor: pointer;
+}
+.filter-input-pair input {
+  flex: 1; background: var(--bg); border: 1px solid var(--border);
+  border-radius: 8px; padding: 8px 10px;
+  font-family: var(--font); font-size: 12px; color: var(--text);
+  outline: none;
+  transition: border-color 0.2s;
+}
+.filter-input-pair input:focus { border-color: var(--purple); }
+.filter-input-pair select:focus { border-color: var(--purple); }
+
+/* Preset pills */
+.preset-section { margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border); }
+.preset-label { font-size: 11px; font-weight: 600; color: var(--text-3); margin-bottom: 10px; }
+.preset-pills { display: flex; gap: 8px; flex-wrap: wrap; }
+.preset-pill {
+  padding: 7px 14px; border-radius: 20px;
+  background: var(--bg); border: 1.5px solid var(--border);
+  font-family: var(--font); font-size: 12px; font-weight: 600; color: var(--text-2);
+  cursor: pointer; transition: all 0.2s;
+  display: flex; align-items: center; gap: 6px;
+}
+.preset-pill:hover { border-color: var(--purple); color: var(--purple); background: var(--purple-light); }
+.preset-pill.active { border-color: var(--purple); color: var(--purple); background: var(--purple-light); }
+
+/* ── Results ── */
+.results-card { background: var(--bg-white); border: 1px solid var(--border); border-radius: 16px; }
+.results-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 18px 22px; border-bottom: 1px solid var(--border);
+}
+.results-title { font-size: 14px; font-weight: 700; color: var(--text); }
+.results-count { font-size: 12px; color: var(--text-3); background: var(--bg); padding: 3px 10px; border-radius: 20px; }
+
+.score-bar-mini {
+  display: flex; align-items: center; gap: 8px;
+}
+.score-bar-mini .bar {
+  width: 50px; height: 5px; border-radius: 99px; background: var(--bg); overflow: hidden;
+}
+.score-bar-mini .bar-fill { height: 100%; border-radius: 99px; }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- Hero Header -->
+<div class="screener-hero">
+  <div class="screener-hero-title">Stock <span>Screener</span></div>
+  <div class="screener-hero-sub">AI-powered fundamental analysis across Nifty 50 universe — find quality stocks that match your criteria</div>
+</div>
+
+<!-- AI Quick Analysis -->
+<div class="ai-quick-box">
+  <div class="ai-quick-label">
+    <i class="fa-solid fa-robot"></i> AI Quick Stock Analysis
+  </div>
+  <div class="ai-search-wrap">
+    <input type="text" class="ai-search-input" id="aiStockInput" 
+           placeholder="Type a stock name or symbol (e.g. HDFC, TCS, Reliance...)" 
+           autocomplete="off"
+           list="stockSuggestions">
+    <datalist id="stockSuggestions">
+      <option value="RELIANCE">Reliance Industries</option>
+      <option value="TCS">TCS</option>
+      <option value="HDFCBANK">HDFC Bank</option>
+      <option value="INFY">Infosys</option>
+      <option value="ICICIBANK">ICICI Bank</option>
+      <option value="SBIN">SBI</option>
+      <option value="KOTAKBANK">Kotak Mahindra Bank</option>
+      <option value="BHARTIARTL">Bharti Airtel</option>
+      <option value="AXISBANK">Axis Bank</option>
+      <option value="ITC">ITC</option>
+      <option value="WIPRO">Wipro</option>
+      <option value="HCLTECH">HCL Tech</option>
+      <option value="MARUTI">Maruti Suzuki</option>
+      <option value="TITAN">Titan</option>
+      <option value="BAJFINANCE">Bajaj Finance</option>
+    </datalist>
+    <button class="btn-ai-analyze" id="aiAnalyzeBtn" onclick="runAIAnalysis()">
+      <i class="fa-solid fa-wand-magic-sparkles"></i> Analyze Stock
+    </button>
+  </div>
+
+  <!-- AI Result Panel -->
+  <div id="aiResultCard" class="ai-result-card">
+    <div class="ai-result-header">
+      <div class="ai-company-info">
+        <div class="ai-company-name" id="aiCompanyName">—</div>
+        <div class="ai-company-symbol" id="aiCompanySymbol">—</div>
+      </div>
+      <div class="ai-price-info">
+        <div class="ai-price" id="aiPrice">₹—</div>
+        <div class="ai-change" id="aiChange">—</div>
+      </div>
+    </div>
+    <div class="ai-verdict" id="aiVerdict">
+      <i class="fa-solid fa-brain"></i> <span id="aiVerdictText">Analyzing...</span>
+    </div>
+    <div class="ai-metrics-mini" id="aiMetrics"></div>
+    <div class="ai-reasoning" id="aiReasoning"></div>
+    <a id="aiFullLink" href="#" style="display:inline-flex;align-items:center;gap:6px;margin-top:12px;font-size:12px;color:var(--purple);font-weight:600">
+      View Full Analysis <i class="fa-solid fa-arrow-right"></i>
+    </a>
+  </div>
+</div>
+
+<!-- Filter Panel -->
+<div class="filter-card">
+  <div class="filter-card-header">
+    <div class="filter-card-title">
+      <i class="fa-solid fa-sliders" style="color:var(--purple)"></i>
+      Fundamental Filters
+    </div>
+    <div class="filter-card-actions">
+      <button class="btn btn-ghost btn-sm" onclick="resetFilters()">
+        <i class="fa-solid fa-rotate-left"></i> Reset
+      </button>
+      <button class="btn btn-ghost btn-sm" onclick="saveCustomFilters()" id="saveFiltersBtn" style="color:var(--purple);border:1px solid var(--purple-light)">
+        <i class="fa-solid fa-bookmark"></i> Save Filter
+      </button>
+      <button class="btn btn-primary btn-sm" onclick="runScreener()" id="screenerRunBtn">
+        <i class="fa-solid fa-play"></i> Run Screener
+      </button>
+    </div>
+  </div>
+
+  <div class="filter-grid-6">
+    <div>
+      <div class="filter-item-label">
+        P/E Ratio <span class="info-dot" title="Lower P/E = cheaper relative to earnings">i</span>
+      </div>
+      <div class="filter-input-pair">
+        <select id="pe_op"><option value="lt">Below</option><option value="gt">Above</option></select>
+        <input type="number" id="pe_val" placeholder="e.g. 25" step="0.1">
+      </div>
+    </div>
+    <div>
+      <div class="filter-item-label">
+        P/B Ratio <span class="info-dot" title="Price to Book — below 3 is generally fair">i</span>
+      </div>
+      <div class="filter-input-pair">
+        <select id="pb_op"><option value="lt">Below</option><option value="gt">Above</option></select>
+        <input type="number" id="pb_val" placeholder="e.g. 3" step="0.1">
+      </div>
+    </div>
+    <div>
+      <div class="filter-item-label">
+        ROE (%) <span class="info-dot" title="Return on Equity — above 15% is healthy">i</span>
+      </div>
+      <div class="filter-input-pair">
+        <select id="roe_op"><option value="gt">Above</option><option value="lt">Below</option></select>
+        <input type="number" id="roe_val" placeholder="e.g. 15" step="0.1">
+      </div>
+    </div>
+    <div>
+      <div class="filter-item-label">
+        Debt / Equity <span class="info-dot" title="D/E below 1 = low debt risk">i</span>
+      </div>
+      <div class="filter-input-pair">
+        <select id="de_op"><option value="lt">Below</option><option value="gt">Above</option></select>
+        <input type="number" id="de_val" placeholder="e.g. 1" step="0.01">
+      </div>
+    </div>
+    <div>
+      <div class="filter-item-label">
+        Revenue Growth (%) <span class="info-dot" title="YoY revenue growth rate">i</span>
+      </div>
+      <div class="filter-input-pair">
+        <select id="rev_op"><option value="gt">Above</option><option value="lt">Below</option></select>
+        <input type="number" id="rev_val" placeholder="e.g. 10" step="0.1">
+      </div>
+    </div>
+    <div>
+      <div class="filter-item-label">
+        Profit Growth (%) <span class="info-dot" title="YoY net profit growth rate">i</span>
+      </div>
+      <div class="filter-input-pair">
+        <select id="pro_op"><option value="gt">Above</option><option value="lt">Below</option></select>
+        <input type="number" id="pro_val" placeholder="e.g. 10" step="0.1">
+      </div>
+    </div>
+    <!-- NEW: Premium Filters -->
+    <div>
+      <div class="filter-item-label">
+        Market Cap (Cr) <span class="info-dot" title="Total company value">i</span>
+      </div>
+      <div class="filter-input-pair">
+        <select id="mc_op"><option value="gt">Above</option><option value="lt">Below</option></select>
+        <input type="number" id="mc_val" placeholder="e.g. 50000" step="1000">
+      </div>
+    </div>
+    <div>
+      <div class="filter-item-label">
+        Div Yield (%) <span class="info-dot" title="Annual dividend percentage">i</span>
+      </div>
+      <div class="filter-input-pair">
+        <select id="div_op"><option value="gt">Above</option><option value="lt">Below</option></select>
+        <input type="number" id="div_val" placeholder="e.g. 1.5" step="0.1">
+      </div>
+    </div>
+    <div style="grid-column: span 2;">
+      <div class="filter-item-label">
+        Sector Category
+      </div>
+      <div class="filter-input-pair">
+        <select id="sec_val" style="width:100%;flex:1">
+          <option value="">Any Sector</option>
+          <option value="Financial">Financial Services</option>
+          <option value="Technology">Technology</option>
+          <option value="Energy">Energy</option>
+          <option value="Consumer">Consumer</option>
+          <option value="Healthcare">Healthcare</option>
+          <option value="Automobile">Automobile</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <!-- Preset Pills -->
+  <div class="preset-section">
+    <div class="preset-label">Quick Presets</div>
+    <div class="preset-pills">
+      <button class="preset-pill" id="preset-value"   onclick="applyPreset('value')">   💎 Value Stocks</button>
+      <button class="preset-pill" id="preset-quality" onclick="applyPreset('quality')"> ⭐ Quality Growth</button>
+      <button class="preset-pill" id="preset-growth"  onclick="applyPreset('growth')">  🚀 High Growth</button>
+      <button class="preset-pill" id="preset-lowdebt" onclick="applyPreset('lowdebt')"> 🏦 Low Debt</button>
+      <button class="preset-pill" id="preset-dividend" onclick="applyPreset('dividend')">💰 Fundamentally Strong</button>
+      <button class="preset-pill" id="preset-custom" onclick="loadCustomFilters()" style="display:none;border-color:var(--orange);color:var(--orange)">⭐ My Saved Filter</button>
+    </div>
+  </div>
+</div>
+
+<!-- Results -->
+<div class="results-card">
+  <div class="results-header">
+    <div class="results-title">📋 Screener Results</div>
+    <div style="display:flex;align-items:center;gap:10px">
+      <span class="results-count" id="resultCount" style="display:none"></span>
+      <button class="btn btn-ghost btn-sm" onclick="exportCSV()">
+        <i class="fa-solid fa-download"></i> Export CSV
+      </button>
+    </div>
+  </div>
+  <div id="screenerResults" style="padding:16px">
+    <div class="empty-state">
+      <div class="empty-icon" style="font-size:48px">🔍</div>
+      <div class="empty-title">Set filters and press Run Screener</div>
+      <div class="empty-sub">Or use a Quick Preset to get started instantly</div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+let screenerData = [];
+
+// ── Stock name → symbol map ──────────────────────────────────────────────────
+const STOCK_MAP = {
+  'RELIANCE':    'RELIANCE.NS',  'RELIANCE INDUSTRIES': 'RELIANCE.NS',
+  'TCS':         'TCS.NS',       'TATA CONSULTANCY': 'TCS.NS',
+  'HDFCBANK':    'HDFCBANK.NS',  'HDFC BANK': 'HDFCBANK.NS',  'HDFC': 'HDFCBANK.NS',
+  'INFY':        'INFY.NS',      'INFOSYS': 'INFY.NS',
+  'ICICIBANK':   'ICICIBANK.NS', 'ICICI': 'ICICIBANK.NS',  'ICICI BANK': 'ICICIBANK.NS',
+  'SBIN':        'SBIN.NS',      'SBI': 'SBIN.NS',  'STATE BANK': 'SBIN.NS',
+  'KOTAKBANK':   'KOTAKBANK.NS', 'KOTAK': 'KOTAKBANK.NS',
+  'BHARTIARTL':  'BHARTIARTL.NS','AIRTEL': 'BHARTIARTL.NS',  'BHARTI AIRTEL': 'BHARTIARTL.NS',
+  'AXISBANK':    'AXISBANK.NS',  'AXIS BANK': 'AXISBANK.NS',  'AXIS': 'AXISBANK.NS',
+  'ITC':         'ITC.NS',
+  'WIPRO':       'WIPRO.NS',
+  'HCLTECH':     'HCLTECH.NS',   'HCL': 'HCLTECH.NS',  'HCL TECH': 'HCLTECH.NS',
+  'MARUTI':      'MARUTI.NS',    'MARUTI SUZUKI': 'MARUTI.NS',
+  'TITAN':       'TITAN.NS',
+  'BAJFINANCE':  'BAJFINANCE.NS','BAJAJ FINANCE': 'BAJFINANCE.NS',
+  'NTPC':        'NTPC.NS',
+  'ONGC':        'ONGC.NS',
+  'HINDALCO':    'HINDALCO.NS',
+  'HINDUNILVR':  'HINDUNILVR.NS','HUL': 'HINDUNILVR.NS',
+  'POWERGRID':   'POWERGRID.NS',
+  'TECHM':       'TECHM.NS',     'TECH MAHINDRA': 'TECHM.NS',
+  'ADANIENT':    'ADANIENT.NS',  'ADANI': 'ADANIENT.NS',
+  'JSWSTEEL':    'JSWSTEEL.NS',  'JSW': 'JSWSTEEL.NS',
+  'TATAMOTORS':  'TATAMOTORS.NS','TATA MOTORS': 'TATAMOTORS.NS',
+  'TATASTEEL':   'TATASTEEL.NS', 'TATA STEEL': 'TATASTEEL.NS',
+  'SUNPHARMA':   'SUNPHARMA.NS', 'SUN PHARMA': 'SUNPHARMA.NS',
+  'DRREDDY':     'DRREDDY.NS',   'DR REDDY': 'DRREDDY.NS',
+  'CIPLA':       'CIPLA.NS',
+  'NESTLEIND':   'NESTLEIND.NS', 'NESTLE': 'NESTLEIND.NS',
+  'COALINDIA':   'COALINDIA.NS', 'COAL INDIA': 'COALINDIA.NS',
+};
+
+function resolveSymbol(query) {
+  const q = query.trim().toUpperCase();
+  if (STOCK_MAP[q]) return STOCK_MAP[q];
+  // Fuzzy match: check if query is a substring of keys
+  for (const [key, val] of Object.entries(STOCK_MAP)) {
+    if (key.includes(q) || q.includes(key)) return val;
+  }
+  // Try appending .NS directly
+  return q + '.NS';
+}
+
+// ── Fundamental benchmarks ────────────────────────────────────────────────────
+function rateFundamental(key, value) {
+  if (value === null || value === undefined) return { signal: 'ok', label: 'N/A' };
+  const v = parseFloat(value);
+  if (isNaN(v)) return { signal: 'ok', label: 'N/A' };
+
+  const rules = {
+    pe_ratio:       { good: [0,25],   ok: [0,40],   label: v <= 25 ? '🟢 Attractive' : v <= 40 ? '🟡 Fair' : '🔴 Expensive' },
+    pb_ratio:       { signal: v <= 3 ? 'good' : v <= 5 ? 'ok' : 'bad',   label: v <= 3 ? '🟢 Fair Value' : v <= 5 ? '🟡 Moderate' : '🔴 Overvalued' },
+    roe:            { signal: v >= 15 ? 'good' : v >= 10 ? 'ok' : 'bad',  label: v >= 15 ? '🟢 Healthy' : v >= 10 ? '🟡 Moderate' : '🔴 Weak' },
+    debt_to_equity: { signal: v <= 0.5 ? 'good' : v <= 1 ? 'ok' : 'bad', label: v <= 0.5 ? '🟢 Low Debt' : v <= 1 ? '🟡 Moderate' : '🔴 High Debt' },
+    revenue_growth: { signal: v >= 15 ? 'good' : v >= 5 ? 'ok' : 'bad',  label: v >= 15 ? '🟢 Strong' : v >= 5 ? '🟡 Stable' : '🔴 Weak' },
+    profit_growth:  { signal: v >= 15 ? 'good' : v >= 5 ? 'ok' : 'bad',  label: v >= 15 ? '🟢 Strong' : v >= 5 ? '🟡 Okay' : '🔴 Weak' },
+    eps:            { signal: v > 0 ? 'good' : 'bad', label: v > 0 ? '🟢 Profitable' : '🔴 Loss Making' },
+    beta:           { signal: v <= 1.2 ? 'good' : v <= 1.5 ? 'ok' : 'bad', label: v <= 1.2 ? '🟢 Low Volatility' : v <= 1.5 ? '🟡 Moderate' : '🔴 High Risk' },
+  };
+  if (!rules[key]) return { signal: 'ok', label: fmtNum(v) };
+  if (rules[key].signal) return { signal: rules[key].signal, label: rules[key].label };
+  const [lo,hi] = rules[key].good;
+  const [lo2,hi2] = rules[key].ok;
+  if (v >= lo && v <= hi) return { signal: 'good', label: rules[key].label };
+  return { signal: 'ok', label: rules[key].label };
+}
+
+// ── AI Stock Analysis ─────────────────────────────────────────────────────────
+async function runAIAnalysis() {
+  const query = document.getElementById('aiStockInput').value.trim();
+  if (!query) { showToast('Enter a stock name', 'info'); return; }
+
+  const symbol = resolveSymbol(query);
+  const btn = document.getElementById('aiAnalyzeBtn');
+  btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Analyzing...';
+  btn.disabled = true;
+
+  try {
+    const [stockRes, predRes] = await Promise.all([
+      fetch(`/api/stock/${symbol}`),
+      fetch(`/api/stock/${symbol}/prediction`)
+    ]);
+    const stock = await stockRes.json();
+    const pred  = await predRes.json();
+
+    if (stock.error) { showToast(`Stock "${query}" not found. Try a different name.`, 'error'); return; }
+
+    // Populate header
+    document.getElementById('aiCompanyName').textContent = stock.company_name || symbol;
+    document.getElementById('aiCompanySymbol').textContent = symbol;
+    document.getElementById('aiPrice').textContent = '₹' + fmtNum(stock.price || 0);
+    const chg = stock.change_pct || 0;
+    const chgEl = document.getElementById('aiChange');
+    chgEl.textContent = `${chg >= 0 ? '+' : ''}${fmtNum(chg)}% today`;
+    chgEl.className = `ai-change ${chg >= 0 ? 'td-up' : 'td-down'}`;
+
+    // Verdict
+    const rec = (pred.recommendation || 'HOLD').toUpperCase();
+    const score = pred.score || 50;
+    const verdictEl = document.getElementById('aiVerdict');
+    verdictEl.className = `ai-verdict ${rec.toLowerCase()}`;
+    const verdictIcons = { BUY: '🚀', SELL: '⚠️', HOLD: '⏸️' };
+    document.getElementById('aiVerdictText').innerHTML = `
+      ${verdictIcons[rec] || '🤖'} AI Verdict: <strong>${rec}</strong> — Score: ${score}/100
+      <small style="font-weight:400;opacity:0.7;margin-left:8px">${pred.confidence || 'Medium'} confidence</small>
+    `;
+
+    // Metrics
+    const metrics = [
+      { label: 'P/E Ratio',    key: 'pe_ratio',       value: stock.pe_ratio,       fmt: v => fmtNum(v,1)+'x' },
+      { label: 'P/B Ratio',    key: 'pb_ratio',       value: stock.pb_ratio,       fmt: v => fmtNum(v,2)+'x' },
+      { label: 'ROE',          key: 'roe',             value: stock.roe,            fmt: v => fmtNum(v,1)+'%' },
+      { label: 'Debt/Equity',  key: 'debt_to_equity', value: stock.debt_to_equity, fmt: v => fmtNum(v,2) },
+      { label: 'Rev Growth',   key: 'revenue_growth', value: stock.revenue_growth, fmt: v => (v>=0?'+':'')+fmtNum(v,1)+'%' },
+      { label: 'Net Profit ↑', key: 'profit_growth',  value: stock.profit_growth,  fmt: v => (v>=0?'+':'')+fmtNum(v,1)+'%' },
+      { label: 'EPS',          key: 'eps',             value: stock.eps,            fmt: v => '₹'+fmtNum(v,1) },
+      { label: 'Beta',         key: 'beta',            value: stock.beta,           fmt: v => fmtNum(v,2) },
+    ];
+    document.getElementById('aiMetrics').innerHTML = metrics.map(m => {
+      const r = rateFundamental(m.key, m.value);
+      const displayVal = (m.value !== null && m.value !== undefined && !isNaN(m.value)) ? m.fmt(m.value) : 'N/A';
+      return `<div class="ai-metric-item">
+        <div class="metric-label">${m.label}</div>
+        <div class="metric-value">${displayVal}</div>
+        <div class="metric-signal ${r.signal}">${r.label}</div>
+      </div>`;
+    }).join('');
+
+    // Reasoning
+    const goodSignals   = metrics.filter(m => rateFundamental(m.key, m.value).signal === 'good').map(m => m.label);
+    const badSignals    = metrics.filter(m => rateFundamental(m.key, m.value).signal === 'bad').map(m => m.label);
+    let reasoning = pred.summary || '';
+    if (goodSignals.length) reasoning += ` Strong fundamentals in: ${goodSignals.join(', ')}.`;
+    if (badSignals.length)  reasoning += ` Watch out for: ${badSignals.join(', ')}.`;
+    document.getElementById('aiReasoning').textContent = reasoning || 'AI analysis complete. Review the fundamental metrics above.';
+
+    // Link to full analysis
+    document.getElementById('aiFullLink').href = `/stock/${symbol}`;
+
+    document.getElementById('aiResultCard').style.display = 'block';
+
+  } catch(e) {
+    showToast('Analysis failed. Please try again.', 'error');
+    console.error(e);
+  } finally {
+    btn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> Analyze Stock';
+    btn.disabled = false;
+  }
+}
+
+// Enter key on AI search
+document.getElementById('aiStockInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter') runAIAnalysis();
+});
+
+// ── Filter Presets ────────────────────────────────────────────────────────────
+const PRESETS = {
+  value:    { pe_ratio: {lt:20}, pb_ratio: {lt:2.5}  },
+  quality:  { roe: {gt:15}, debt_to_equity: {lt:1}, revenue_growth: {gt:10} },
+  growth:   { revenue_growth: {gt:20}, profit_growth: {gt:20} },
+  lowdebt:  { debt_to_equity: {lt:0.3} },
+  dividend: { roe: {gt:12}, pe_ratio: {lt:30}, debt_to_equity: {lt:1.5} },
+};
+
+function applyPreset(name) {
+  resetFilters();
+  document.querySelectorAll('.preset-pill').forEach(p => p.classList.remove('active'));
+  document.getElementById(`preset-${name}`)?.classList.add('active');
+  const p = PRESETS[name] || {};
+  if(p.pe_ratio)         { document.getElementById('pe_op').value='lt'; document.getElementById('pe_val').value=p.pe_ratio.lt; }
+  if(p.pb_ratio)         { document.getElementById('pb_op').value='lt'; document.getElementById('pb_val').value=p.pb_ratio.lt; }
+  if(p.roe)              { document.getElementById('roe_op').value='gt'; document.getElementById('roe_val').value=p.roe.gt; }
+  if(p.debt_to_equity)   { document.getElementById('de_op').value='lt'; document.getElementById('de_val').value=p.debt_to_equity.lt; }
+  if(p.revenue_growth)   { document.getElementById('rev_op').value='gt'; document.getElementById('rev_val').value=p.revenue_growth.gt; }
+  if(p.profit_growth)    { document.getElementById('pro_op').value='gt'; document.getElementById('pro_val').value=p.profit_growth.gt; }
+  runScreener();
+}
+
+function resetFilters() {
+  ['pe_val','pb_val','roe_val','de_val','rev_val','pro_val'].forEach(id => document.getElementById(id).value = '');
+  document.querySelectorAll('.preset-pill').forEach(p => p.classList.remove('active'));
+}
+
+function buildFilters() {
+  const f = {};
+  const pairs = [
+    ['pe_ratio','pe_op','pe_val'],['pb_ratio','pb_op','pb_val'],
+    ['roe','roe_op','roe_val'],['debt_to_equity','de_op','de_val'],
+    ['revenue_growth','rev_op','rev_val'],['profit_growth','pro_op','pro_val'],
+    ['market_cap','mc_op','mc_val'],['dividend_yield','div_op','div_val']
+  ];
+  for(const [field,opId,valId] of pairs) {
+    const el = document.getElementById(valId);
+    if(el && el.value !== '') { const op=document.getElementById(opId).value; f[field]={[op]:parseFloat(el.value)}; }
+  }
+  const sec = document.getElementById('sec_val').value;
+  if (sec) f['sector'] = {'contains': sec};
+  return f;
+}
+
+// ── Custom Filter Saving via Supabase ─────────────────────────────────────────
+async function saveCustomFilters() {
+  const filters = buildFilters();
+  if(!Object.keys(filters).length){ showToast('Set filters first','info'); return; }
+  try {
+    const res = await fetch('/api/preferences', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ custom_filters: filters })
+    });
+    showToast('Filters saved successfully!', 'success');
+  } catch(e) { showToast('Error saving filters','error'); }
+}
+
+async function checkSavedFilters() {
+  try {
+    const res = await fetch('/api/preferences');
+    const data = await res.json();
+    if(data.preferences && data.preferences.custom_filters && Object.keys(data.preferences.custom_filters).length) {
+      document.getElementById('preset-custom').style.display = 'inline-flex';
+      window.savedCustomFilters = data.preferences.custom_filters;
+    }
+  } catch(e) {}
+}
+
+function loadCustomFilters() {
+  resetFilters();
+  document.querySelectorAll('.preset-pill').forEach(p => p.classList.remove('active'));
+  document.getElementById(`preset-custom`)?.classList.add('active');
+  const p = window.savedCustomFilters;
+  if(!p) return;
+  // Apply logic iteratively
+  const pairs = [
+    ['pe_ratio','pe_op','pe_val'],['pb_ratio','pb_op','pb_val'],
+    ['roe','roe_op','roe_val'],['debt_to_equity','de_op','de_val'],
+    ['revenue_growth','rev_op','rev_val'],['profit_growth','pro_op','pro_val'],
+    ['market_cap','mc_op','mc_val'],['dividend_yield','div_op','div_val']
+  ];
+  pairs.forEach(([field, opId, valId]) => {
+     if(p[field]) {
+         const op = Object.keys(p[field])[0];
+         document.getElementById(opId).value = op;
+         document.getElementById(valId).value = p[field][op];
+     }
+  });
+  if(p['sector']) document.getElementById('sec_val').value = p['sector']['contains'];
+  runScreener();
+}
+
+async function runScreener() {
+  const filters = buildFilters();
+  if(!Object.keys(filters).length){ showToast('Set at least one filter or use a preset','info'); return; }
+
+  const btn = document.getElementById('screenerRunBtn');
+  btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Scanning...';
+  btn.disabled = true;
+
+  document.getElementById('screenerResults').innerHTML =
+    `<div style="padding:40px 0;text-align:center">
+      <div style="font-size:32px;animation:pulse 1.5s infinite">🔍</div>
+      <div style="margin-top:12px;font-size:14px;color:var(--text-3)">Scanning Nifty 50 stocks...</div>
+    </div>`;
+  document.getElementById('resultCount').style.display = 'none';
+  
+  try {
+    const res = await fetch('/api/screener',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(filters)});
+    const data = await res.json();
+    screenerData = data.results || [];
+    renderResults(screenerData, data.total || screenerData.length);
+  } catch(e) {
+    showToast('Screener failed. Try again.','error');
+    document.getElementById('screenerResults').innerHTML =
+      '<div class="empty-state"><div class="empty-icon">⚠️</div><div class="empty-title">Failed to run screener</div></div>';
+  } finally {
+    btn.innerHTML = '<i class="fa-solid fa-play"></i> Run Screener';
+    btn.disabled = false;
+  }
+}
+
+function renderResults(results, total) {
+  const countEl = document.getElementById('resultCount');
+  countEl.textContent = `${total} match${total !== 1 ? 'es' : ''}`;
+  countEl.style.display = 'inline-block';
+  
+  if(!results.length) {
+    document.getElementById('screenerResults').innerHTML =
+      '<div class="empty-state"><div class="empty-icon">🔍</div><div class="empty-title">No stocks matched</div><div class="empty-sub">Try relaxing the criteria or using a different preset</div></div>';
+    return;
+  }
+
+  document.getElementById('screenerResults').innerHTML = `
+    <div class="table-wrap">
+      <table>
+        <thead><tr>
+          <th>#</th>
+          <th>Symbol</th>
+          <th>Company</th>
+          <th style="cursor:pointer" onclick="sortScreener('price')">Price ↕</th>
+          <th style="cursor:pointer" onclick="sortScreener('change_pct')">Change ↕</th>
+          <th style="cursor:pointer" onclick="sortScreener('pe_ratio')">P/E ↕</th>
+          <th>ROE%</th>
+          <th>D/E</th>
+          <th style="cursor:pointer" onclick="sortScreener('revenue_growth')">Rev Gr% ↕</th>
+          <th style="cursor:pointer" onclick="sortScreener('score')">AI Score ↕</th>
+          <th>Signal</th>
+        </tr></thead>
+        <tbody>
+          ${results.map((r,i) => {
+            const peR = rateFundamental('pe_ratio', r.pe_ratio);
+            const roeR = rateFundamental('roe', r.roe);
+            const sc = r.score||50;
+            const scoreColor = sc>=70?'var(--green)':sc>=45?'var(--orange)':'var(--red)';
+            return `<tr onclick="window.location='/stock/${r.symbol}'" style="cursor:pointer">
+              <td style="color:var(--text-4);font-size:12px;width:28px">${i+1}</td>
+              <td><span class="td-sym">${r.symbol.replace('.NS','')}</span></td>
+              <td style="font-size:13px;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.company_name}</td>
+              <td style="font-weight:600">₹${fmtNum(r.price||0)}</td>
+              <td class="td-${changeClass(r.change_pct||0)}">${changePrefix(r.change_pct||0)}${fmtNum(r.change_pct||0)}%</td>
+              <td>${r.pe_ratio?`<span style="color:${peR.signal==='good'?'var(--green)':peR.signal==='bad'?'var(--red)':'var(--text)'}">${fmtNum(r.pe_ratio,1)}x</span>`:'<span style="color:var(--text-4)">—</span>'}</td>
+              <td>${r.roe?`<span style="color:${roeR.signal==='good'?'var(--green)':roeR.signal==='bad'?'var(--red)':'var(--text)'}">${fmtNum(r.roe,1)}%</span>`:'<span style="color:var(--text-4)">—</span>'}</td>
+              <td>${r.debt_to_equity!==undefined&&r.debt_to_equity!==null?fmtNum(r.debt_to_equity,2):'<span style="color:var(--text-4)">—</span>'}</td>
+              <td class="td-${changeClass(r.revenue_growth||0)}">${changePrefix(r.revenue_growth||0)}${fmtNum(r.revenue_growth||0,1)}%</td>
+              <td>
+                <div class="score-bar-mini">
+                  <div class="bar"><div class="bar-fill" style="width:${sc}%;background:${scoreColor}"></div></div>
+                  <strong style="font-size:12px">${sc}</strong>
+                </div>
+              </td>
+              <td><span class="badge ${(r.recommendation||'hold').toLowerCase()}">${r.recommendation||'HOLD'}</span></td>
+            </tr>`;
+          }).join('')}
+        </tbody>
+      </table>
+    </div>`;
+}
+
+function exportCSV() {
+  if(!screenerData.length){showToast('Run screener first','info');return;}
+  const headers=['Symbol','Company','Sector','Price','Change%','PE','PB','ROE%','DebtEquity','RevGrowth%','Score','Rec'];
+  const rows=screenerData.map(r=>[r.symbol,r.company_name,r.sector||'',r.price,r.change_pct,r.pe_ratio,r.pb_ratio,r.roe,r.debt_to_equity,r.revenue_growth,r.score,r.recommendation]);
+  const csv=[headers,...rows].map(row=>row.join(',')).join('\n');
+  const blob=new Blob([csv],{type:'text/csv'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob);
+  a.download=`zenvest_screener_${Date.now()}.csv`; a.click();
+  showToast('CSV exported!','success');
+}
+
+let sortAsc = false;
+function sortScreener(field) {
+  if(!screenerData.length) return;
+  sortAsc = !sortAsc;
+  screenerData.sort((a,b) => {
+    let valA = a[field] || 0;
+    let valB = b[field] || 0;
+    return sortAsc ? valA - valB : valB - valA;
+  });
+  renderResults(screenerData, screenerData.length);
+}
+
+// Auto-apply "Quality Growth" preset on page load
+document.addEventListener('DOMContentLoaded', () => {
+  {% if user %}checkSavedFilters();{% endif %}
+  applyPreset('quality');
+});
+</script>
+{% endblock %}

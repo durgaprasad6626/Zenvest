@@ -1,0 +1,164 @@
+{% extends "base.html" %}
+{% block title %}Sector Heatmap — Zenvest{% endblock %}
+{% block head %}
+<style>
+.heatmap-grid { display:flex; flex-direction:column; gap:12px; }
+.sector-block {
+  border-radius: 14px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+}
+.sector-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 18px;
+  font-weight: 700;
+  font-size: 14px;
+  cursor: pointer;
+}
+.stocks-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+  gap: 2px;
+  padding: 2px;
+}
+.stock-tile {
+  padding: 12px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  cursor: pointer;
+  transition: filter 0.15s;
+  border-radius: 6px;
+}
+.stock-tile:hover { filter: brightness(1.15); }
+.tile-sym  { font-size: 12px; font-weight: 800; color: #fff; }
+.tile-chg  { font-size: 14px; font-weight: 800; color: #fff; }
+.tile-name { font-size: 9px; color: rgba(255,255,255,0.65); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">
+    <div>
+      <h1 class="page-title">🌡️ Sector <span>Heatmap</span></h1>
+      <p class="page-subtitle">Visual market overview — tile size by market cap, color by price change</p>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px">
+      <div style="display:flex;align-items:center;gap:6px;font-size:12px">
+        <div style="width:14px;height:14px;border-radius:3px;background:#1a6b40"></div><span style="color:var(--text-3)">+3%+</span>
+        <div style="width:14px;height:14px;border-radius:3px;background:#22a05a"></div><span style="color:var(--text-3)">+1-3%</span>
+        <div style="width:14px;height:14px;border-radius:3px;background:#555"></div><span style="color:var(--text-3)">~0%</span>
+        <div style="width:14px;height:14px;border-radius:3px;background:#c0392b"></div><span style="color:var(--text-3)">-1-3%</span>
+        <div style="width:14px;height:14px;border-radius:3px;background:#7b1f1f"></div><span style="color:var(--text-3)">-3%+</span>
+      </div>
+      <button class="btn btn-primary btn-sm" onclick="loadHeatmap()">
+        <i class="fa-solid fa-arrows-rotate"></i> Refresh
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Summary Stats -->
+<div class="stat-grid mb-20" id="heatSummary">
+  {% for i in range(3) %}<div class="stat-card skeleton" style="height:80px"></div>{% endfor %}
+</div>
+
+<!-- Heatmap -->
+<div id="heatmapBody">
+  <div style="text-align:center;padding:60px;color:var(--text-3)">
+    <i class="fa-solid fa-spinner fa-spin" style="font-size:32px;color:var(--purple)"></i>
+    <div style="margin-top:16px;font-size:14px">Loading market data…</div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function heatColor(chg) {
+  if (chg >= 3)  return '#0d5c30';
+  if (chg >= 1.5) return '#1a8045';
+  if (chg >= 0.5) return '#22a05a';
+  if (chg >= -0.5) return '#444';
+  if (chg >= -1.5) return '#a93226';
+  if (chg >= -3)  return '#c0392b';
+  return '#7b1f1f';
+}
+
+function sectorHeaderColor(chg) {
+  if (chg > 0.5) return 'linear-gradient(90deg,#1a8045,#0d5c30)';
+  if (chg < -0.5) return 'linear-gradient(90deg,#a93226,#7b1f1f)';
+  return 'linear-gradient(90deg,#333,#555)';
+}
+
+async function loadHeatmap() {
+  document.getElementById('heatmapBody').innerHTML =
+    '<div style="text-align:center;padding:60px;color:var(--text-3)"><i class="fa-solid fa-spinner fa-spin" style="font-size:32px;color:var(--purple)"></i><div style="margin-top:16px;font-size:14px">Loading market data…</div></div>';
+
+  try {
+    const res = await fetch('/api/heatmap');
+    const data = await res.json();
+    if (data.error) { showToast(data.error, 'error'); return; }
+
+    const sectors = data.sectors || [];
+
+    // Summary stats
+    const allStocks = sectors.flatMap(s => s.stocks);
+    const gainers   = allStocks.filter(s => s.change_pct > 0).length;
+    const losers    = allStocks.filter(s => s.change_pct < 0).length;
+    const avgChg    = allStocks.reduce((a,s) => a + s.change_pct, 0) / (allStocks.length || 1);
+    document.getElementById('heatSummary').innerHTML = `
+      <div class="stat-card ${avgChg>=0?'green':'red'}">
+        <div class="stat-label">Market Avg Change</div>
+        <div class="stat-value" style="color:${avgChg>=0?'var(--green)':'var(--red)'}">${avgChg>=0?'+':''}${fmtNum(avgChg,2)}%</div>
+        <div class="stat-icon">${avgChg>=0?'📈':'📉'}</div>
+      </div>
+      <div class="stat-card green">
+        <div class="stat-label">Gainers</div>
+        <div class="stat-value" style="color:var(--green)">${gainers}</div>
+        <div class="stat-icon">🟢</div>
+      </div>
+      <div class="stat-card red">
+        <div class="stat-label">Losers</div>
+        <div class="stat-value" style="color:var(--red)">${losers}</div>
+        <div class="stat-icon">🔴</div>
+      </div>`;
+
+    // Heatmap
+    document.getElementById('heatmapBody').innerHTML = `
+      <div class="heatmap-grid">
+        ${sectors.map(sector => {
+          const sColor = sectorHeaderColor(sector.avg_change);
+          const sChg   = sector.avg_change;
+          return `
+          <div class="sector-block">
+            <div class="sector-header" style="background:${sColor};color:#fff">
+              <span>${sector.sector}</span>
+              <div style="display:flex;align-items:center;gap:12px">
+                <span style="font-size:12px;opacity:0.8">${sector.stock_count} stocks</span>
+                <span style="font-size:16px;font-weight:800">${sChg>=0?'+':''}${fmtNum(sChg,2)}%</span>
+              </div>
+            </div>
+            <div class="stocks-grid">
+              ${sector.stocks.map(s => `
+                <div class="stock-tile" style="background:${heatColor(s.change_pct)}"
+                     onclick="window.location='/stock/${s.symbol}.NS'">
+                  <div class="tile-sym">${s.symbol}</div>
+                  <div class="tile-chg">${s.change_pct>=0?'+':''}${fmtNum(s.change_pct,2)}%</div>
+                  <div class="tile-name">${(s.company_name||'').replace(/ Ltd\.?$/i,'')}</div>
+                </div>
+              `).join('')}
+            </div>
+          </div>`;
+        }).join('')}
+      </div>`;
+  } catch(e) {
+    showToast('Heatmap load failed', 'error');
+  }
+}
+
+document.addEventListener('DOMContentLoaded', loadHeatmap);
+</script>
+{% endblock %}

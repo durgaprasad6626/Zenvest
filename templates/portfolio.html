@@ -1,0 +1,510 @@
+{% extends "base.html" %}
+{% block title %}Portfolio — Zenvest{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="flex items-center justify-between" style="flex-wrap:wrap;gap:12px">
+    <div>
+      <h1 class="page-title">My <span>Portfolio</span></h1>
+      <p class="page-subtitle">Track your investments and get AI improvement suggestions</p>
+    </div>
+    <div class="flex gap-8">
+      <button class="btn btn-outline" onclick="window.print()" id="btnPrint">
+        <i class="fa-solid fa-file-pdf"></i> Export Report
+      </button>
+      <button class="btn btn-primary" onclick="openAddModal()">
+        <i class="fa-solid fa-plus"></i> Add Stock
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Portfolio Summary Cards -->
+<div class="stat-grid mb-24" id="portfolioSummary">
+  <div class="stat-card teal skeleton" style="height:100px"></div>
+  <div class="stat-card gold skeleton" style="height:100px"></div>
+  <div class="stat-card blue skeleton" style="height:100px"></div>
+  <div class="stat-card crimson skeleton" style="height:100px"></div>
+</div>
+
+<!-- Performance Chart -->
+<div class="card mb-24">
+  <div class="card-header">
+    <span class="card-title">📈 Portfolio History</span>
+    <div style="display:flex;gap:6px">
+      <button class="btn btn-ghost btn-sm tab-range active" onclick="loadHistory(7,this)">7D</button>
+      <button class="btn btn-ghost btn-sm tab-range" onclick="loadHistory(30,this)">30D</button>
+      <button class="btn btn-ghost btn-sm tab-range" onclick="loadHistory(90,this)">90D</button>
+    </div>
+  </div>
+  <div class="chart-wrap-lg" style="height:280px">
+    <canvas id="performanceChart"></canvas>
+  </div>
+  <div id="historyNote" style="font-size:11px;color:var(--text-4);text-align:center;padding:8px"></div>
+</div>
+
+<!-- Allocation Chart + Holdings Table -->
+<div class="grid-12 mb-24">
+  <!-- Donut Chart -->
+  <div class="card">
+    <div class="card-header"><span class="card-title">📊 Allocation</span></div>
+    <div class="chart-wrap" id="allocationWrap">
+      <canvas id="allocationChart"></canvas>
+    </div>
+    <div id="allocationLegend" class="donut-legend" style="margin-top:16px"></div>
+  </div>
+
+  <!-- Holdings Table -->
+  <div class="card" style="grid-column:span 1">
+    <div class="card-header"><span class="card-title">💼 Holdings</span></div>
+    <div id="holdingsTable">
+      {% if not user %}
+      <div class="empty-state">
+        <div class="empty-icon">🔐</div>
+        <div class="empty-title">Sign in to view your portfolio</div>
+        <div class="empty-sub" style="margin-top:12px"><a href="/login" class="btn btn-primary btn-sm">Sign In</a></div>
+      </div>
+      {% else %}
+      <div class="skeleton" style="height:250px;border-radius:8px"></div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<!-- AI Suggestions -->
+<div class="card" id="aiSuggestionsCard">
+  <div class="card-header">
+    <span class="card-title">🤖 AI Portfolio Suggestions</span>
+    <span class="badge positive">Personalized</span>
+  </div>
+  <div id="aiSuggestions">
+    <div class="empty-state">
+      <div class="empty-icon">🤖</div>
+      <div class="empty-title">Add stocks to your portfolio to get AI suggestions</div>
+    </div>
+  </div>
+</div>
+
+<!-- AI Portfolio Optimizer -->
+<div class="card mt-24" id="optimizerCard">
+  <div class="card-header">
+    <span class="card-title">⚖️ AI Portfolio Optimizer</span>
+  </div>
+  <div class="grid-12">
+    <div>
+      <p style="font-size:13px;color:var(--text-3);margin-bottom:16px;line-height:1.5">
+        Our Engine analyzes your current risk configuration and compares your existing sector weightings against the idealized growth target to suggest a perfect balance.
+      </p>
+      <button class="btn btn-primary" onclick="runOptimizer()" id="btnOptimize">
+        <i class="fa-solid fa-wand-magic-sparkles"></i> Generate Optimal Allocation
+      </button>
+      <div id="optimizerInsights" class="fade-in" style="margin-top:20px;display:none;font-size:12px;color:var(--text-2);background:var(--bg-hover);padding:14px;border-radius:var(--radius-lg);border-left:3px solid var(--purple)"></div>
+    </div>
+    <div class="chart-wrap fade-in" style="height:220px;display:none" id="optimizerChartWrap">
+      <div style="font-size:11px;text-align:center;font-weight:600;margin-bottom:6px">TARGET ALLOCATION</div>
+      <canvas id="optimizerChart"></canvas>
+    </div>
+  </div>
+</div>
+
+<!-- Add Stock Modal -->
+<div id="addModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:1000;align-items:center;justify-content:center">
+  <div class="card" style="max-width:420px;width:90%;margin:auto">
+    <div class="card-header">
+      <span class="card-title">Add Stock to Portfolio</span>
+      <button onclick="closeAddModal()" style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:18px">✕</button>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Stock Symbol</label>
+      <input class="form-input" id="addSymbol" placeholder="e.g. RELIANCE.NS or TCS.NS">
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Quantity</label>
+        <input class="form-input" id="addQty" type="number" value="1" min="1">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Buy Price (₹)</label>
+        <input class="form-input" id="addPrice" type="number" step="0.01" placeholder="0.00">
+      </div>
+    </div>
+    <div class="flex gap-8">
+      <button class="btn btn-ghost" onclick="closeAddModal()" style="flex:1;justify-content:center">Cancel</button>
+      <button class="btn btn-primary" onclick="addStock()" style="flex:1;justify-content:center">
+        <i class="fa-solid fa-plus"></i> Add Position
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Edit Position Modal -->
+<div id="editModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:1000;align-items:center;justify-content:center">
+  <div class="card" style="max-width:360px;width:90%;margin:auto">
+    <div class="card-header">
+      <span class="card-title"><i class="fa-solid fa-pencil"></i> Edit Position</span>
+      <button onclick="closeEditModal()" style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:18px">✕</button>
+    </div>
+    <input type="hidden" id="editPid">
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Quantity</label>
+        <input class="form-input" id="editQty" type="number" min="1">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Buy Price (₹)</label>
+        <input class="form-input" id="editBuyPrice" type="number" step="0.01">
+      </div>
+    </div>
+    <div class="flex gap-8">
+      <button class="btn btn-ghost" onclick="closeEditModal()" style="flex:1;justify-content:center">Cancel</button>
+      <button class="btn btn-primary" onclick="saveEdit()" style="flex:1;justify-content:center">
+        <i class="fa-solid fa-floppy-disk"></i> Save
+      </button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+
+{% block scripts %}
+<script>
+{% if not user %}
+// Not logged in
+document.getElementById('portfolioSummary').innerHTML =
+  '<div class="stat-card teal"><div class="stat-label">Please sign in</div><div class="stat-value" style="font-size:16px">to view portfolio</div></div>';
+{% else %}
+let allocationChart = null;
+let performanceChart = null;
+let optimChart = null;
+const PALETTE = ['#00d4aa','#f5a623','#4e9eff','#ff4757','#a29bfe','#fd79a8','#55efc4','#fdcb6e'];
+
+async function loadPortfolio() {
+  try {
+    const res  = await fetch('/api/portfolio');
+    const data = await res.json();
+    if (data.error) {
+      document.getElementById('holdingsTable').innerHTML =
+        `<div class="empty-state"><div class="empty-icon">⚠️</div><div class="empty-title">${data.error}</div></div>`;
+      return;
+    }
+    renderSummary(data.summary || {});
+    renderHoldings(data.positions || []);
+    renderAllocation(data.positions || []);
+    renderAIsuggestions(data.positions || []);
+    loadHistory(7);
+    // Take snapshot for today
+    fetch('/api/portfolio/snapshot', {method:'POST'}).catch(()=>{});
+  } catch(e) {
+    showToast('Failed to load portfolio', 'error');
+  }
+}
+
+function renderSummary(s) {
+  const pnl  = s.total_pnl || 0;
+  const gain = s.total_pnl_pct || 0;
+  document.getElementById('portfolioSummary').innerHTML = `
+    <div class="stat-card teal fade-in-up">
+      <div class="stat-label">Invested Value</div>
+      <div class="stat-value">₹${fmtNum(s.total_invested||0,0)}</div>
+      <div class="stat-icon">💰</div>
+    </div>
+    <div class="stat-card ${pnl>=0?'teal':'crimson'} fade-in-up">
+      <div class="stat-label">Current Value</div>
+      <div class="stat-value">₹${fmtNum(s.total_current||0,0)}</div>
+      <div class="stat-icon">📈</div>
+    </div>
+    <div class="stat-card ${pnl>=0?'gold':'crimson'} fade-in-up">
+      <div class="stat-label">Total P&L</div>
+      <div class="stat-value" style="color:${pnl>=0?'var(--teal)':'var(--crimson)'};font-size:22px">
+        ${changePrefix(pnl)}₹${fmtNum(Math.abs(pnl),0)}
+      </div>
+      <div class="stat-change ${changeClass(gain)}">${changePrefix(gain)}${fmtNum(gain)}%</div>
+      <div class="stat-icon">${pnl>=0?'🟢':'🔴'}</div>
+    </div>
+    <div class="stat-card blue fade-in-up">
+      <div class="stat-label">Holdings</div>
+      <div class="stat-value" style="font-size:22px" id="holdingsCount">—</div>
+      <div class="stat-icon">💼</div>
+    </div>
+  `;
+}
+
+function renderHoldings(positions) {
+  document.getElementById('holdingsCount') && (document.getElementById('holdingsCount').textContent = positions.length);
+  if (!positions.length) {
+    document.getElementById('holdingsTable').innerHTML =
+      '<div class="empty-state"><div class="empty-icon">📊</div><div class="empty-title">No holdings yet</div><div class="empty-sub">Add stocks using the button above</div></div>';
+    return;
+  }
+  document.getElementById('holdingsTable').innerHTML = `
+    <div class="table-wrap">
+      <table>
+        <thead><tr>
+          <th>Symbol</th><th>Company</th><th>Qty</th>
+          <th>Buy Price</th><th>Current</th><th>P&L</th><th>Rec</th><th></th>
+        </tr></thead>
+        <tbody>
+          ${positions.map(p => `
+            <tr>
+              <td class="td-sym" onclick="window.location='/stock/${p.symbol}'">${p.symbol.replace('.NS','')}</td>
+              <td style="font-size:12px;color:var(--text-secondary);max-width:120px;overflow:hidden;text-overflow:ellipsis">${p.company_name||''}</td>
+              <td>${p.quantity}</td>
+              <td>₹${fmtNum(p.buy_price)}</td>
+              <td>₹${fmtNum(p.current_price)}</td>
+              <td>
+                <div class="td-${changeClass(p.pnl_pct)}" style="font-weight:700">
+                  ${changePrefix(p.pnl_pct)}${fmtNum(Math.abs(p.pnl_pct))}%
+                </div>
+                <div style="font-size:11px;color:var(--text-muted)">${changePrefix(p.pnl)}₹${fmtNum(Math.abs(p.pnl),0)}</div>
+              </td>
+              <td><span class="badge ${(p.recommendation||'hold').toLowerCase()}">${p.recommendation||'HOLD'}</span></td>
+              <td>
+                <div style="display:flex;gap:4px">
+                  <button class="btn btn-ghost btn-sm" onclick="openEditModal(${p.id},${p.quantity},${p.buy_price})" title="Edit">
+                    <i class="fa-solid fa-pencil"></i>
+                  </button>
+                  <button class="btn btn-danger btn-sm" onclick="removeStock(${p.id})">
+                    <i class="fa-solid fa-trash"></i>
+                  </button>
+                </div>
+              </td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
+function renderAllocation(positions) {
+  if (!positions.length) return;
+  const labels  = positions.map(p => p.symbol.replace('.NS',''));
+  const values  = positions.map(p => p.current_value || p.invested_value);
+  const colors  = PALETTE.slice(0, positions.length);
+
+  const ctx = document.getElementById('allocationChart').getContext('2d');
+  if (allocationChart) allocationChart.destroy();
+  allocationChart = new Chart(ctx, {
+    type: 'doughnut',
+    data: { labels, datasets: [{ data: values, backgroundColor: colors, borderColor: '#05122b', borderWidth: 3 }] },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: '#0d1f3c', borderColor: '#00d4aa', borderWidth: 1,
+          callbacks: { label: ctx => `${ctx.label}: ₹${fmtNum(ctx.raw,0)}` }
+        }
+      },
+      cutout: '65%'
+    }
+  });
+
+  const total = values.reduce((a,b) => a+b, 0);
+  document.getElementById('allocationLegend').innerHTML = positions.map((p, i) => `
+    <div class="donut-legend-item">
+      <div class="legend-dot" style="background:${colors[i]}"></div>
+      <span style="flex:1;font-size:13px">${p.symbol.replace('.NS','')}</span>
+      <span style="font-size:12px;color:var(--text-muted)">${fmtNum((p.current_value/total)*100,1)}%</span>
+    </div>
+  `).join('');
+}
+
+function renderAIsuggestions(positions) {
+  if (!positions.length) return;
+  const suggestions = positions.map(p => {
+    const rec = p.recommendation;
+    const pnl = p.pnl_pct;
+    let msg = '', icon = '', type = 'info';
+    if (rec === 'SELL' && pnl > 10) {
+      msg = `Consider booking profits in ${p.symbol.replace('.NS','')} — up ${fmtNum(pnl)}%, AI signals SELL.`;
+      icon = '💰'; type = 'gold';
+    } else if (rec === 'BUY' && pnl < -10) {
+      msg = `${p.symbol.replace('.NS','')} is down ${fmtNum(Math.abs(pnl))}% — strong BUY signal. Consider averaging down.`;
+      icon = '📉'; type = 'teal';
+    } else if (rec === 'HOLD') {
+      msg = `${p.symbol.replace('.NS','')} — Hold position. AI signals stable outlook.`;
+      icon = '🟡'; type = 'neutral';
+    } else if (rec === 'BUY') {
+      msg = `${p.symbol.replace('.NS','')} shows strong BUY signal with good fundamentals.`;
+      icon = '🚀'; type = 'teal';
+    }
+    return { msg, icon };
+  }).filter(s => s.msg);
+
+  // Sector Exposure check
+  const sectors = {};
+  positions.forEach(p => {
+    const val = p.current_price * p.quantity;
+    const sec = p.sector || 'Unknown';
+    if(sec !== 'Unknown') sectors[sec] = (sectors[sec] || 0) + val;
+  });
+  const total = Object.values(sectors).reduce((a,b)=>a+b, 0);
+  for(let sec in sectors) {
+    if(sectors[sec] / total > 0.4) {
+      suggestions.push({
+        msg: `High Concentration Warning: Reduce exposure in ${sec} sector. Consider diversifying into IT or Defensive stocks.`,
+        icon: '⚖️'
+      });
+    }
+  }
+
+  document.getElementById('aiSuggestions').innerHTML = suggestions.length ?
+    suggestions.map(s => `
+      <div style="display:flex;gap:12px;padding:12px;background:var(--bg-secondary);border-radius:10px;margin-bottom:8px">
+        <span style="font-size:20px">${s.icon}</span>
+        <span style="font-size:14px;color:var(--text-secondary)">${s.msg}</span>
+      </div>
+    `).join('') :
+    '<div class="empty-state"><div class="empty-icon">✅</div><div class="empty-title">All good! Your portfolio looks balanced.</div></div>';
+}
+
+function renderPerformanceChart(data, label='Portfolio Value') {
+  const ctx = document.getElementById('performanceChart').getContext('2d');
+  if (performanceChart) performanceChart.destroy();
+  const labels = data.map(d => d.snapshot_date || d.date);
+  const values = data.map(d => d.total_value || d.val);
+  if (!values.length) { document.getElementById('historyNote').textContent='No history yet — check back tomorrow after your first snapshot.'; return; }
+  const isUp = values[values.length-1] >= values[0];
+  const gradient = ctx.createLinearGradient(0,0,0,260);
+  gradient.addColorStop(0, isUp?'rgba(0,200,150,0.18)':'rgba(255,79,78,0.18)');
+  gradient.addColorStop(1,'rgba(255,255,255,0)');
+  performanceChart = new Chart(ctx, {
+    type:'line',
+    data:{ labels, datasets:[{ label, data:values,
+      borderColor: isUp?'#00c896':'#ff4f4e', backgroundColor:gradient,
+      borderWidth:2, fill:true, tension:0.3, pointRadius:2, pointHoverRadius:5
+    }]},
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      plugins:{legend:{display:false}},
+      scales:{
+        x:{grid:{display:false}, ticks:{color:'#aaa', maxTicksLimit:8, font:{size:10}}},
+        y:{ticks:{callback:v=>'₹'+fmtNum(v,0), color:'#aaa', font:{size:10}}}
+      }
+    }
+  });
+}
+
+// ── AI Optimizer ──────────────────────────────────────────────────────────────
+async function runOptimizer() {
+  const btn = document.getElementById('btnOptimize');
+  btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Analyzing...';
+  
+  try {
+    const res = await fetch('/api/portfolio/optimize');
+    const data = await res.json();
+    if(data.error) throw new Error(data.error);
+    
+    document.getElementById('optimizerInsights').style.display = 'block';
+    document.getElementById('optimizerInsights').innerHTML = data.insights.map(i => `<div style="margin-bottom:8px">💡 ${i}</div>`).join('');
+    document.getElementById('optimizerChartWrap').style.display = 'block';
+    
+    const ctx = document.getElementById('optimizerChart').getContext('2d');
+    if (optimChart) optimChart.destroy();
+    
+    optimChart = new Chart(ctx, {
+      type: 'doughnut',
+      data: {
+        labels: Object.keys(data.target_allocation),
+        datasets: [{
+          data: Object.values(data.target_allocation),
+          backgroundColor: PALETTE,
+          borderWidth: 0,
+          hoverOffset: 4
+        }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        cutout: '65%',
+        plugins: {
+          legend: { position: 'right', labels: { boxWidth: 10, font:{size:10} } }
+        }
+      }
+    });
+    
+  } catch(e) {
+    showToast(e.message, 'error');
+  }
+  btn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> Generate Optimal Allocation';
+}
+
+// ── Add / Remove ──────────────────────────────────────────────────────────────
+function openAddModal() { document.getElementById('addModal').style.display='flex'; }
+function closeAddModal() { document.getElementById('addModal').style.display='none'; }
+
+async function addStock() {
+  const symbol = document.getElementById('addSymbol').value.trim().toUpperCase();
+  const qty    = parseInt(document.getElementById('addQty').value) || 1;
+  const price  = parseFloat(document.getElementById('addPrice').value);
+  if (!symbol || !price) { showToast('Fill in all fields', 'error'); return; }
+  try {
+    const res = await fetch('/api/portfolio', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ symbol, quantity:qty, buy_price:price })
+    });
+    const d = await res.json();
+    if (d.error) throw new Error(d.error);
+    showToast(`${symbol} added!`, 'success');
+    closeAddModal();
+    loadPortfolio();
+  } catch(e) { showToast(e.message||'Failed to add', 'error'); }
+}
+
+async function removeStock(id) {
+  if (!confirm('Remove this position?')) return;
+  const res = await fetch(`/api/portfolio/${id}`, { method:'DELETE' });
+  const d = await res.json();
+  if (d.error) { showToast(d.error, 'error'); return; }
+  showToast('Position removed', 'success');
+  loadPortfolio();
+}
+
+// ── Portfolio History ─────────────────────────────────────────────────────
+async function loadHistory(days, btn) {
+  if (btn) {
+    document.querySelectorAll('.tab-range').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+  }
+  try {
+    const res = await fetch(`/api/portfolio/history?days=${days}`);
+    const data = await res.json();
+    const history = data.history || [];
+    renderPerformanceChart(history);
+  } catch(e) {
+    document.getElementById('historyNote').textContent='Could not load history';
+  }
+}
+
+// ── Edit Position ─────────────────────────────────────────────────────────
+function openEditModal(id, qty, price) {
+  document.getElementById('editPid').value = id;
+  document.getElementById('editQty').value = qty;
+  document.getElementById('editBuyPrice').value = price;
+  document.getElementById('editModal').style.display = 'flex';
+}
+function closeEditModal() {
+  document.getElementById('editModal').style.display = 'none';
+}
+async function saveEdit() {
+  const pid   = document.getElementById('editPid').value;
+  const qty   = parseInt(document.getElementById('editQty').value);
+  const price = parseFloat(document.getElementById('editBuyPrice').value);
+  if (!qty || !price) { showToast('Fill both fields','error'); return; }
+  try {
+    const res = await fetch(`/api/portfolio/${pid}`, {
+      method:'PUT', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({quantity:qty, buy_price:price})
+    });
+    const d = await res.json();
+    if (d.error) throw new Error(d.error);
+    showToast('Position updated!','success');
+    closeEditModal();
+    loadPortfolio();
+  } catch(e) { showToast(e.message||'Update failed','error'); }
+}
+
+document.addEventListener('DOMContentLoaded', loadPortfolio);
+{% endif %}
+</script>
+{% endblock %}

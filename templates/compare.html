@@ -1,0 +1,157 @@
+{% extends "base.html" %}
+{% block title %}Compare Stocks — Zenvest{% endblock %}
+{% block head %}
+<style>
+.compare-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:16px; }
+.compare-card { background:var(--bg-white); border:1px solid var(--border); border-radius:16px; padding:20px; }
+.compare-header { text-align:center; padding-bottom:16px; border-bottom:1px solid var(--border); margin-bottom:16px; }
+.compare-sym { font-size:22px; font-weight:800; color:var(--purple); }
+.compare-name { font-size:12px; color:var(--text-3); margin-top:3px; }
+.compare-price { font-size:26px; font-weight:800; color:var(--text); margin:10px 0 4px; }
+.metric-row { display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px solid var(--border); font-size:13px; }
+.metric-row:last-child { border-bottom:none; }
+.metric-label { color:var(--text-3); font-size:12px; }
+.metric-val { font-weight:600; color:var(--text); }
+</style>
+{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1 class="page-title">⚖️ Stock <span>Comparison</span></h1>
+  <p class="page-subtitle">Compare 2–3 stocks side by side with fundamentals and AI radar</p>
+</div>
+
+<!-- Input -->
+<div class="card mb-20">
+  <div class="card-header"><span class="card-title">Enter Stocks to Compare</span></div>
+  <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end">
+    <div class="form-group" style="margin:0;flex:1;min-width:160px">
+      <label class="form-label">Stock 1</label>
+      <input class="form-input" id="sym1" placeholder="e.g. RELIANCE" value="RELIANCE">
+    </div>
+    <div class="form-group" style="margin:0;flex:1;min-width:160px">
+      <label class="form-label">Stock 2</label>
+      <input class="form-input" id="sym2" placeholder="e.g. TCS" value="TCS">
+    </div>
+    <div class="form-group" style="margin:0;flex:1;min-width:160px">
+      <label class="form-label">Stock 3 (optional)</label>
+      <input class="form-input" id="sym3" placeholder="e.g. INFY">
+    </div>
+    <button class="btn btn-primary" style="margin-bottom:0" onclick="runCompare()">
+      <i class="fa-solid fa-chart-bar"></i> Compare
+    </button>
+  </div>
+</div>
+
+<!-- Results -->
+<div id="compareResults" style="display:none">
+  <!-- Side by Side Cards -->
+  <div class="compare-grid mb-20" id="compareCards"></div>
+
+  <!-- Radar Chart -->
+  <div class="card">
+    <div class="card-header"><span class="card-title">📡 Fundamental Radar</span></div>
+    <div style="max-width:500px;margin:0 auto;height:380px;">
+      <canvas id="radarChart"></canvas>
+    </div>
+  </div>
+</div>
+
+<div id="compareEmpty" class="card" style="text-align:center;padding:40px">
+  <div style="font-size:48px;margin-bottom:12px">⚖️</div>
+  <div style="font-size:16px;font-weight:700;color:var(--text)">Enter at least 2 stocks above and click Compare</div>
+  <div style="font-size:13px;color:var(--text-3);margin-top:6px">Side-by-side fundamentals + AI radar chart</div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let radarChart = null;
+const COLORS = ['#6c47ff','#00b386','#f59e0b'];
+
+async function runCompare() {
+  const syms = [
+    document.getElementById('sym1').value.trim(),
+    document.getElementById('sym2').value.trim(),
+    document.getElementById('sym3').value.trim()
+  ].filter(Boolean);
+
+  if (syms.length < 2) { showToast('Enter at least 2 stocks','info'); return; }
+
+  document.getElementById('compareEmpty').style.display = 'none';
+  document.getElementById('compareResults').style.display = 'none';
+  document.getElementById('compareCards').innerHTML = syms.map(()=>`<div class="compare-card skeleton" style="height:320px"></div>`).join('');
+  document.getElementById('compareResults').style.display = 'block';
+
+  try {
+    const res = await fetch(`/api/compare?symbols=${syms.join(',')}`);
+    const data = await res.json();
+    if (data.error) { showToast(data.error,'error'); return; }
+    const results = data.results || [];
+    if (!results.length) { showToast('No data found for these symbols','error'); return; }
+
+    // Cards
+    document.getElementById('compareCards').innerHTML = results.map((r,i) => `
+      <div class="compare-card" style="border-top:3px solid ${COLORS[i]}">
+        <div class="compare-header">
+          <div class="compare-sym">${r.symbol.replace('.NS','')}</div>
+          <div class="compare-name">${r.company_name}</div>
+          <div class="compare-price">₹${fmtNum(r.price)}</div>
+          <div class="${changeClass(r.change_pct)}" style="font-size:13px;font-weight:600">${changePrefix(r.change_pct)}${fmtNum(r.change_pct)}%</div>
+          <span class="badge ${(r.recommendation||'hold').toLowerCase()}" style="margin-top:8px;display:inline-flex">${r.recommendation||'HOLD'}</span>
+          <div style="font-size:12px;margin-top:6px;color:var(--text-3)">AI Score: <b style="color:var(--purple)">${r.score}/100</b></div>
+        </div>
+        ${[
+          ['Sector', r.sector||'—'],
+          ['P/E Ratio', r.pe_ratio ? fmtNum(r.pe_ratio,1)+'x' : 'N/A'],
+          ['P/B Ratio', r.pb_ratio ? fmtNum(r.pb_ratio,2)+'x' : 'N/A'],
+          ['ROE', r.roe ? fmtNum(r.roe,1)+'%' : 'N/A'],
+          ['Debt/Equity', r.debt_to_equity ? fmtNum(r.debt_to_equity,2) : 'N/A'],
+          ['Revenue Growth', r.revenue_growth ? (r.revenue_growth>=0?'+':'')+fmtNum(r.revenue_growth,1)+'%' : 'N/A'],
+          ['EPS', r.eps ? '₹'+fmtNum(r.eps,1) : 'N/A'],
+          ['Beta', r.beta ? fmtNum(r.beta,2) : 'N/A'],
+        ].map(([l,v]) => `<div class="metric-row"><span class="metric-label">${l}</span><span class="metric-val">${v}</span></div>`).join('')}
+        <div style="margin-top:12px;font-size:11px;color:var(--text-3);font-style:italic">${r.summary||''}</div>
+      </div>
+    `).join('');
+
+    // Radar
+    const metrics = ['P/E Score','ROE Score','Low D/E','Rev Growth','AI Score','EPS'];
+    const normalize = (val, max) => val ? Math.min(100, Math.max(0, (val/max)*100)) : 0;
+    const datasets = results.map((r,i) => ({
+      label: r.symbol.replace('.NS',''),
+      data: [
+        normalize(40-(r.pe_ratio||40), 40),
+        normalize(r.roe||0, 30),
+        normalize(2-(r.debt_to_equity||2), 2),
+        normalize(r.revenue_growth||0, 30),
+        r.score||50,
+        normalize(r.eps||0, 100)
+      ],
+      backgroundColor: COLORS[i]+'33',
+      borderColor: COLORS[i],
+      borderWidth: 2, pointBackgroundColor: COLORS[i]
+    }));
+    const ctx = document.getElementById('radarChart').getContext('2d');
+    if (radarChart) radarChart.destroy();
+    radarChart = new Chart(ctx, {
+      type: 'radar',
+      data: { labels: metrics, datasets },
+      options: {
+        responsive:true, maintainAspectRatio:false,
+        scales: { r: { min:0, max:100, ticks:{display:false}, grid:{color:'rgba(0,0,0,0.06)'}, pointLabels:{font:{size:12},color:'#666'} } },
+        plugins: { legend:{position:'bottom',labels:{boxWidth:12,font:{size:12}}} }
+      }
+    });
+  } catch(e) {
+    showToast('Compare failed. Check stock symbols.','error');
+  }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  // Enter key support
+  ['sym1','sym2','sym3'].forEach(id => {
+    document.getElementById(id).addEventListener('keydown', e => { if(e.key==='Enter') runCompare(); });
+  });
+});
+</script>
+{% endblock %}

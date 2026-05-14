@@ -1,0 +1,404 @@
+{% extends "base.html" %}
+{% block title %}Zenvest — Dashboard{% endblock %}
+
+{% block content %}
+<!-- Page Header -->
+<div class="page-header">
+  <h1 class="page-title">Good day 👋 — <span>Markets Overview</span></h1>
+  <p class="page-subtitle">Real-time AI-powered stock intelligence</p>
+</div>
+
+<!-- Market Index Bar (fetches LIVE data from API) -->
+<div class="index-bar mb-20" id="indexBar">
+  <div class="index-item">
+    <div class="index-name">NIFTY 50</div>
+    <div class="index-price skeleton" id="idx-nifty" style="width:80px;height:22px;border-radius:4px"></div>
+    <div class="index-chg" id="idx-nifty-chg" style="height:14px"></div>
+  </div>
+  <div class="index-item">
+    <div class="index-name">SENSEX</div>
+    <div class="index-price skeleton" id="idx-sensex" style="width:80px;height:22px;border-radius:4px"></div>
+    <div class="index-chg" id="idx-sensex-chg" style="height:14px"></div>
+  </div>
+  <div class="index-item">
+    <div class="index-name">BANK NIFTY</div>
+    <div class="index-price skeleton" id="idx-bank" style="width:80px;height:22px;border-radius:4px"></div>
+    <div class="index-chg" id="idx-bank-chg" style="height:14px"></div>
+  </div>
+  <div class="index-item">
+    <div class="index-name">As of</div>
+    <div class="index-price" id="idx-time" style="font-size:13px">—</div>
+    <div class="index-chg" id="idx-market-status" style="height:14px"></div>
+  </div>
+</div>
+
+<!-- Main 2-col layout -->
+<div class="grid-12 mb-20">
+
+  <!-- Left: Chart -->
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title" id="niftyChartTitle">Nifty 50 — Today</span>
+      <div style="display:flex;gap:6px">
+        <button class="btn btn-ghost btn-sm tab-range active" onclick="setChartRange(this,'TODAY')">Today</button>
+        <button class="btn btn-ghost btn-sm tab-range" onclick="setChartRange(this,'3M')">3M</button>
+        <button class="btn btn-ghost btn-sm tab-range" onclick="setChartRange(this,'6M')">6M</button>
+        <button class="btn btn-ghost btn-sm tab-range" onclick="setChartRange(this,'1Y')">1Y</button>
+      </div>
+    </div>
+    <div class="chart-wrap">
+      <canvas id="marketChart"></canvas>
+    </div>
+  </div>
+
+  <!-- Right: Top Gainers + Losers -->
+  <div class="card">
+    <div class="tabs" style="margin-bottom:12px">
+      <button class="tab-btn active" onclick="switchTab('gainers',this)">Top Gainers</button>
+      <button class="tab-btn" onclick="switchTab('losers',this)">Top Losers</button>
+    </div>
+    <div id="gainers-panel">
+      <div id="gainersRows">
+        <div class="skeleton" style="height:180px;border-radius:8px"></div>
+      </div>
+    </div>
+    <div id="losers-panel" style="display:none">
+      <div id="losersRows">
+        <div class="skeleton" style="height:180px;border-radius:8px"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Zenvest Smart Picks -->
+<div class="card mb-20">
+  <div class="card-header">
+    <span class="card-title">✨ Zenvest Smart Picks</span>
+    <a href="/recommendations" class="btn btn-outline btn-sm">View All</a>
+  </div>
+  <div id="topPicksGrid" class="pick-cards">
+    {% for i in range(6) %}
+    <div class="skeleton" style="height:120px;border-radius:12px"></div>
+    {% endfor %}
+  </div>
+</div>
+
+<!-- Market News -->
+<div class="card">
+  <div class="card-header">
+    <span class="card-title">📰 Market News</span>
+    <span class="badge positive">AI Analyzed</span>
+  </div>
+  <div id="newsFeed">
+    {% for i in range(4) %}
+    <div class="skeleton mb-8" style="height:60px;border-radius:8px"></div>
+    {% endfor %}
+  </div>
+</div>
+
+<!-- ⚠️ DISCLAIMER BANNER -->
+<div style="
+  margin-top: 32px;
+  background: linear-gradient(135deg, #1a0a00 0%, #2d1400 60%, #1a0800 100%);
+  border: 2px solid #f59e0b;
+  border-radius: 16px;
+  padding: 24px 28px;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 0 0 1px rgba(245,158,11,0.2), 0 8px 32px rgba(245,158,11,0.12);
+">
+  <!-- glow accent -->
+  <div style="position:absolute;top:-40px;left:-40px;width:180px;height:180px;border-radius:50%;background:radial-gradient(circle,rgba(245,158,11,0.18) 0%,transparent 70%);pointer-events:none;"></div>
+  <div style="position:absolute;bottom:-60px;right:-30px;width:200px;height:200px;border-radius:50%;background:radial-gradient(circle,rgba(245,158,11,0.1) 0%,transparent 70%);pointer-events:none;"></div>
+
+  <div style="position:relative;z-index:2;display:flex;align-items:flex-start;gap:18px;">
+    <!-- Warning Icon -->
+    <div style="
+      width:52px;height:52px;flex-shrink:0;
+      background:rgba(245,158,11,0.15);
+      border:2px solid rgba(245,158,11,0.5);
+      border-radius:14px;
+      display:flex;align-items:center;justify-content:center;
+      font-size:26px;
+    ">⚠️</div>
+
+    <div style="flex:1">
+      <div style="
+        font-size:15px;
+        font-weight:800;
+        color:#f59e0b;
+        letter-spacing:0.4px;
+        text-transform:uppercase;
+        margin-bottom:8px;
+        display:flex;align-items:center;gap:8px;
+      ">
+        <span style="width:24px;height:2px;background:#f59e0b;border-radius:2px;display:inline-block;"></span>
+        Important Disclaimer
+        <span style="width:24px;height:2px;background:#f59e0b;border-radius:2px;display:inline-block;"></span>
+      </div>
+      <p style="
+        font-size:14px;
+        font-weight:700;
+        color:rgba(255,255,255,0.92);
+        line-height:1.75;
+        margin:0;
+        letter-spacing:0.1px;
+      ">
+        ⚠️ <strong style="color:#fbbf24;">Zenvest is for educational and informational purposes only and does not constitute financial advice.</strong>
+        All AI predictions, stock scores, recommendations, and analysis provided on this platform are
+        <strong style="color:#fbbf24;">simulated and for learning purposes only</strong>.
+        Past performance does not guarantee future results.
+        <strong style="color:#fbbf24;">Always consult a SEBI-registered financial advisor before making any investment decisions.</strong>
+        Investing in stocks involves significant risk, including the potential loss of principal.
+      </p>
+      <div style="margin-top:14px;display:flex;align-items:center;gap:8px;">
+        <span style="font-size:11px;font-weight:600;color:rgba(245,158,11,0.7);letter-spacing:1.2px;text-transform:uppercase;">© 2026 Zenvest</span>
+        <span style="width:3px;height:3px;border-radius:50%;background:rgba(245,158,11,0.4);"></span>
+        <span style="font-size:11px;color:rgba(255,255,255,0.3);">Not SEBI Registered · Not Financial Advice · For Educational Use Only</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+// ── Load Live Market Indices ───────────────────────────────────────────────
+
+async function loadIndices() {
+  try {
+    const now = new Date();
+    document.getElementById('idx-time').textContent =
+      now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+    document.getElementById('idx-market-status').textContent = 'Live';
+    document.getElementById('idx-market-status').className = 'index-chg up';
+
+    const res  = await fetch('/api/market/overview');
+    const data = await res.json();
+    const idMap = {
+      '^NSEI':    { priceEl: 'idx-nifty',  chgEl: 'idx-nifty-chg'  },
+      '^BSESN':   { priceEl: 'idx-sensex', chgEl: 'idx-sensex-chg' },
+      '^NSEBANK': { priceEl: 'idx-bank',   chgEl: 'idx-bank-chg'   }
+    };
+    (data.indices || []).forEach(idx => {
+      const map = idMap[idx.symbol];
+      if (!map) return;
+      const pEl = document.getElementById(map.priceEl);
+      const cEl = document.getElementById(map.chgEl);
+      pEl.className = 'index-price';
+      pEl.style = '';
+      pEl.textContent = fmtNum(idx.price, 2);
+      const chgPct = idx.change_pct || 0;
+      cEl.textContent = `${changePrefix(chgPct)}${fmtNum(chgPct)}% (${changePrefix(idx.change||0)}${fmtNum(Math.abs(idx.change||0), 2)})`;
+      cEl.className = `index-chg ${changeClass(chgPct)}`;
+    });
+  } catch(e) {
+    console.error('Index load failed:', e);
+  }
+}
+
+// ── Chart ──────────────────────────────────────────────────────────────────
+let _marketChart = null;
+
+function createChartInstance(labels, values) {
+  const canvas = document.getElementById('marketChart');
+  const ctx = canvas.getContext('2d');
+  const gradient = ctx.createLinearGradient(0, 0, 0, 260);
+  gradient.addColorStop(0, 'rgba(108,71,255,0.15)');
+  gradient.addColorStop(1, 'rgba(108,71,255,0)');
+
+  if (_marketChart) { _marketChart.destroy(); _marketChart = null; }
+
+  _marketChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [{
+        data: values,
+        borderColor: '#6c47ff',
+        backgroundColor: gradient,
+        borderWidth: 2, fill: true, tension: 0.4,
+        pointRadius: 0, pointHoverRadius: 4,
+        pointHoverBackgroundColor: '#6c47ff'
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: '#fff', borderColor: '#e5e7eb', borderWidth: 1,
+          titleColor: '#888', bodyColor: '#0d0d0d',
+          padding: 10, cornerRadius: 8, displayColors: false,
+          callbacks: { label: c => `Nifty: ${Number(c.raw).toFixed(0)}` }
+        }
+      },
+      scales: {
+        x: { grid: { display: false }, ticks: { color: '#aaa', maxTicksLimit: 8, font: { size: 10 } } },
+        y: { grid: { color: 'rgba(0,0,0,0.04)' }, ticks: { color: '#aaa', font: { size: 10 }, callback: v => Number(v).toFixed(0) } }
+      }
+    },
+    plugins: [{
+      id: 'vLine',
+      afterDraw: chart => {
+        if (chart.tooltip?._active?.length) {
+          const x = chart.tooltip._active[0].element.x;
+          const yAxis = chart.scales.y;
+          const c = chart.ctx;
+          c.save();
+          c.beginPath();
+          c.moveTo(x, yAxis.top);
+          c.lineTo(x, yAxis.bottom);
+          c.lineWidth = 1;
+          c.strokeStyle = 'rgba(108, 71, 255, 0.2)';
+          c.setLineDash([4, 4]);
+          c.stroke();
+          c.restore();
+        }
+      }
+    }]
+  });
+}
+
+async function loadNiftyChart(period) {
+  const titleMap = { 'TODAY': 'Today', '3M': 'Last 3 Months', '6M': 'Last 6 Months', '1Y': 'Last 1 Year' };
+  try {
+    const res  = await fetch(`/api/market/nifty-history?period=${period}`);
+    const data = await res.json();
+    if (data.error || !data.labels || !data.labels.length) {
+      createChartInstance(['No data'], [0]);
+      return;
+    }
+    const titleEl = document.getElementById('niftyChartTitle');
+    if (titleEl) titleEl.textContent = `Nifty 50 — ${titleMap[period] || period}`;
+    createChartInstance(data.labels, data.values);
+  } catch(e) {
+    console.error('Chart load failed:', e);
+  }
+}
+
+async function setChartRange(btn, range) {
+  document.querySelectorAll('.tab-range').forEach(b => {
+    b.classList.remove('active');
+    b.disabled = false;
+  });
+  btn.classList.add('active');
+  btn.disabled = true;
+  await loadNiftyChart(range);
+  btn.disabled = false;
+}
+
+function switchTab(tab, btn) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('gainers-panel').style.display = tab === 'gainers' ? '' : 'none';
+  document.getElementById('losers-panel').style.display  = tab === 'losers'  ? '' : 'none';
+}
+
+// ── Movers ─────────────────────────────────────────────────────────────────
+function renderMovers(stocks, containerId) {
+  if (!stocks || !stocks.length) {
+    document.getElementById(containerId).innerHTML = '<div class="empty-state"><div class="empty-title">No data</div></div>';
+    return;
+  }
+  document.getElementById(containerId).innerHTML = stocks.map(s => `
+    <div class="mover-row fade-in" onclick="window.location='/stock/${s.symbol}'">
+      <div>
+        <div class="mover-sym">${s.symbol.replace('.NS','')}</div>
+        <div class="mover-name">${(s.company_name||'').slice(0,24)}</div>
+      </div>
+      <div style="text-align:right">
+        <div class="mover-price">₹${fmtNum(s.price||0)}</div>
+        <div class="mover-chg ${changeClass(s.change_pct)}">${changePrefix(s.change_pct)}${fmtNum(s.change_pct)}%</div>
+      </div>
+    </div>
+  `).join('');
+}
+
+async function loadMovers() {
+  try {
+    const res  = await fetch('/api/market/top-movers');
+    const data = await res.json();
+    renderMovers(data.gainers || [], 'gainersRows');
+    renderMovers(data.losers  || [], 'losersRows');
+  } catch(e) {
+    ['gainersRows','losersRows'].forEach(id => {
+      document.getElementById(id).innerHTML = '<div class="empty-state"><div class="empty-title">Failed to load</div></div>';
+    });
+  }
+}
+
+// ── AI Top Picks ───────────────────────────────────────────────────────────
+async function loadTopPicks() {
+  try {
+    const res  = await fetch('/api/recommendations?risk=Medium');
+    const data = await res.json();
+    const picks = (data.recommendations || []).slice(0, 6);
+
+    if (!picks.length) {
+      document.getElementById('topPicksGrid').innerHTML =
+        '<div class="empty-state"><div class="empty-icon">🤖</div><div class="empty-title">No picks yet — loading AI analysis…</div></div>';
+      return;
+    }
+
+    document.getElementById('topPicksGrid').innerHTML = picks.map(p => `
+      <div class="pick-card fade-in" onclick="window.location='/stock/${p.symbol}'">
+        <div class="flex items-center justify-between mb-8">
+          <span class="pick-sym">${p.symbol.replace('.NS','')}</span>
+          <span class="badge ${(p.recommendation||'HOLD').toLowerCase()}">${p.recommendation||'HOLD'}</span>
+        </div>
+        <div class="pick-name">${p.company_name||p.symbol}</div>
+        <div class="pick-price">₹${fmtNum(p.price||0)}</div>
+        <div class="pick-growth">📈 ${p.expected_growth_label||'AI analyzing...'}</div>
+      </div>
+    `).join('');
+  } catch(e) {
+    document.getElementById('topPicksGrid').innerHTML =
+      '<div class="empty-state"><div class="empty-icon">⚠️</div><div class="empty-title">Could not load AI picks</div></div>';
+  }
+}
+
+// ── News ───────────────────────────────────────────────────────────────────
+async function loadNews() {
+  try {
+    const res  = await fetch('/api/stock/RELIANCE.NS/news');
+    const data = await res.json();
+    const news = (data.news || []).slice(0, 6);
+
+    if (!news.length) {
+      document.getElementById('newsFeed').innerHTML = '<div class="empty-state"><div class="empty-icon">📰</div><div class="empty-title">No news available</div></div>';
+      return;
+    }
+
+    document.getElementById('newsFeed').innerHTML = news.map(n => `
+      <a href="${n.url||'#'}" target="_blank" class="news-card fade-in" rel="noopener">
+        <div style="flex:1">
+          <div class="news-title">${n.title||''}</div>
+          <div class="news-meta">
+            <span class="badge ${(n.sentiment||'Neutral').toLowerCase()}">${n.sentiment||'Neutral'}</span>
+            <span class="news-publisher">${n.publisher||''}</span>
+            <span>${n.published_at||''}</span>
+          </div>
+        </div>
+      </a>
+    `).join('');
+  } catch(e) {
+    document.getElementById('newsFeed').innerHTML = '<div class="empty-state"><div class="empty-title">Failed to load news</div></div>';
+  }
+}
+
+// ── Init ───────────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  loadNiftyChart('TODAY');
+  // Load indices first (fastest, most important)
+  loadIndices();
+  // Load movers + news in parallel (fast visible data)
+  Promise.all([loadMovers(), loadNews()]);
+  // Picks is heavy — load after a short delay
+  setTimeout(loadTopPicks, 200);
+});
+</script>
+{% endblock %}

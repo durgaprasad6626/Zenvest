@@ -1,0 +1,192 @@
+{% extends "base.html" %}
+{% block title %}Options Chain — Zenvest{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1 class="page-title">⛓ Options <span>Chain</span></h1>
+  <p class="page-subtitle">Live NSE options data — Calls & Puts with OI, IV, and LTP</p>
+</div>
+
+<!-- Symbol Selector -->
+<div class="card mb-20">
+  <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap">
+    <div class="form-group" style="margin:0">
+      <label class="form-label">Symbol</label>
+      <select class="form-select" id="optSymbol" style="min-width:160px">
+        <option value="NIFTY">NIFTY 50</option>
+        <option value="BANKNIFTY">BANK NIFTY</option>
+        <option value="RELIANCE">RELIANCE</option>
+        <option value="TCS">TCS</option>
+        <option value="HDFCBANK">HDFCBANK</option>
+        <option value="INFY">INFY</option>
+        <option value="ICICIBANK">ICICIBANK</option>
+        <option value="SBIN">SBIN</option>
+      </select>
+    </div>
+    <div class="form-group" style="margin:0">
+      <label class="form-label">Expiry</label>
+      <select class="form-select" id="optExpiry" style="min-width:140px"></select>
+    </div>
+    <button class="btn btn-primary" id="loadBtn" onclick="loadOptions()">
+      <i class="fa-solid fa-arrows-rotate"></i> Load Chain
+    </button>
+  </div>
+</div>
+
+<!-- Summary Cards -->
+<div class="stat-grid mb-20" id="optSummary" style="display:none">
+  <div class="stat-card purple"><div class="stat-label">Spot Price</div><div class="stat-value" id="spotPrice">—</div><div class="stat-icon">💹</div></div>
+  <div class="stat-card green"><div class="stat-label">Max Call OI Strike</div><div class="stat-value" id="maxCallOI">—</div><div class="stat-icon">📈</div></div>
+  <div class="stat-card red"><div class="stat-label">Max Put OI Strike</div><div class="stat-value" id="maxPutOI">—</div><div class="stat-icon">📉</div></div>
+  <div class="stat-card orange"><div class="stat-label">PCR (Put/Call OI)</div><div class="stat-value" id="pcrRatio">—</div><div class="stat-icon">⚖️</div></div>
+</div>
+
+<!-- Options Table -->
+<div class="card">
+  <div class="card-header">
+    <span class="card-title" id="chainTitle">Options Chain</span>
+    <span class="badge" id="expiryBadge" style="background:var(--purple-light);color:var(--purple)"></span>
+  </div>
+  <div id="optionsBody">
+    <div class="empty-state" style="padding:40px">
+      <div style="font-size:48px;margin-bottom:12px">⛓</div>
+      <div style="font-size:15px;font-weight:700">Select a symbol and click Load Chain</div>
+      <div style="font-size:13px;color:var(--text-3);margin-top:6px">Live options data from NSE via yfinance</div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let chainData = null;
+
+document.getElementById('optSymbol').addEventListener('change', loadExpirations);
+
+async function loadExpirations() {
+  const sym = document.getElementById('optSymbol').value;
+  const expSel = document.getElementById('optExpiry');
+  expSel.innerHTML = '<option>Loading...</option>';
+  try {
+    const res = await fetch(`/api/options/${sym}`);
+    const data = await res.json();
+    if (data.error) { expSel.innerHTML = '<option>No data</option>'; return; }
+    expSel.innerHTML = data.expirations.map(e => `<option value="${e}">${e}</option>`).join('');
+    renderChain(data);
+  } catch(e) {
+    expSel.innerHTML = '<option>Error</option>';
+  }
+}
+
+async function loadOptions() {
+  const sym    = document.getElementById('optSymbol').value;
+  const expiry = document.getElementById('optExpiry').value;
+  const btn    = document.getElementById('loadBtn');
+  btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Loading...';
+  btn.disabled  = true;
+
+  document.getElementById('optionsBody').innerHTML =
+    '<div style="text-align:center;padding:40px;color:var(--text-3)"><i class="fa-solid fa-spinner fa-spin" style="font-size:24px"></i><br><br>Fetching options data...</div>';
+
+  try {
+    const url = expiry ? `/api/options/${sym}?expiry=${expiry}` : `/api/options/${sym}`;
+    const res  = await fetch(url);
+    const data = await res.json();
+    if (data.error) { showToast(data.error, 'error'); return; }
+    renderChain(data);
+  } catch(e) {
+    showToast('Failed to load options data', 'error');
+  } finally {
+    btn.innerHTML = '<i class="fa-solid fa-arrows-rotate"></i> Load Chain';
+    btn.disabled  = false;
+  }
+}
+
+function renderChain(data) {
+  chainData = data;
+  const spot = data.spot;
+  const chain = data.chain || [];
+
+  // Summary
+  document.getElementById('optSummary').style.display = '';
+  document.getElementById('spotPrice').textContent = '₹' + fmtNum(spot);
+  document.getElementById('chainTitle').textContent = `${data.symbol} Options Chain`;
+  document.getElementById('expiryBadge').textContent = data.expiry;
+  document.getElementById('optExpiry').value = data.expiry;
+
+  // PCR
+  const totalCallOI = chain.reduce((s, r) => s + (r.call_oi || 0), 0);
+  const totalPutOI  = chain.reduce((s, r) => s + (r.put_oi || 0), 0);
+  const pcr = totalCallOI ? (totalPutOI / totalCallOI).toFixed(2) : '—';
+  document.getElementById('pcrRatio').textContent = pcr;
+
+  // Max OI strikes
+  const maxCall = chain.reduce((m, r) => r.call_oi > (m.call_oi||0) ? r : m, {});
+  const maxPut  = chain.reduce((m, r) => r.put_oi  > (m.put_oi||0)  ? r : m, {});
+  document.getElementById('maxCallOI').textContent = maxCall.strike ? '₹' + fmtNum(maxCall.strike) : '—';
+  document.getElementById('maxPutOI').textContent  = maxPut.strike  ? '₹' + fmtNum(maxPut.strike)  : '—';
+
+  const maxOI = Math.max(...chain.map(r => Math.max(r.call_oi||0, r.put_oi||0)));
+
+  document.getElementById('optionsBody').innerHTML = `
+    <div style="overflow-x:auto">
+      <table style="width:100%;border-collapse:collapse;font-size:12px">
+        <thead>
+          <tr style="background:var(--bg)">
+            <th colspan="4" style="text-align:center;padding:10px;color:var(--green);font-weight:700;border-bottom:2px solid var(--green)">CALLS</th>
+            <th style="text-align:center;padding:10px;font-weight:800;font-size:13px;background:var(--purple-light);color:var(--purple);border-bottom:2px solid var(--purple)">STRIKE</th>
+            <th colspan="4" style="text-align:center;padding:10px;color:var(--red);font-weight:700;border-bottom:2px solid var(--red)">PUTS</th>
+          </tr>
+          <tr style="background:var(--bg);font-size:11px;color:var(--text-3)">
+            <th style="padding:8px;text-align:right">OI</th>
+            <th style="padding:8px;text-align:right">IV%</th>
+            <th style="padding:8px;text-align:right">Vol</th>
+            <th style="padding:8px;text-align:right;color:var(--green);font-weight:700">LTP</th>
+            <th style="padding:8px;text-align:center;background:var(--purple-light);font-weight:700;color:var(--purple)">Strike</th>
+            <th style="padding:8px;text-align:left;color:var(--red);font-weight:700">LTP</th>
+            <th style="padding:8px;text-align:left">Vol</th>
+            <th style="padding:8px;text-align:left">IV%</th>
+            <th style="padding:8px;text-align:left">OI</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${chain.map(r => {
+            const atm   = Math.abs(r.strike - spot) < (spot * 0.01);
+            const rowBg = atm ? 'background:rgba(108,71,255,0.06)' : '';
+            const cBold = r.call_itm ? 'color:var(--green);font-weight:700' : '';
+            const pBold = r.put_itm  ? 'color:var(--red);font-weight:700'   : '';
+            const oiW   = v => v ? Math.round((v / maxOI) * 100) : 0;
+            return `
+            <tr style="border-bottom:1px solid var(--border);${rowBg}" ${atm ? 'id="atm-row"' : ''}>
+              <td style="padding:7px 10px;text-align:right">
+                <div style="font-size:11px">${fmtNum(r.call_oi,0)}</div>
+                <div style="height:3px;background:var(--green);opacity:0.5;border-radius:2px;width:${oiW(r.call_oi)}%;margin-left:auto"></div>
+              </td>
+              <td style="padding:7px 10px;text-align:right;color:var(--orange)">${r.call_iv || '—'}</td>
+              <td style="padding:7px 10px;text-align:right;color:var(--text-3)">${fmtNum(r.call_vol,0)}</td>
+              <td style="padding:7px 10px;text-align:right;${cBold}">${r.call_ltp}</td>
+              <td style="padding:7px 10px;text-align:center;font-weight:${atm?'900':'700'};font-size:${atm?'14px':'12px'};background:var(--purple-light);color:var(--purple)">
+                ${fmtNum(r.strike)} ${atm ? '<span style="font-size:9px;color:var(--purple);background:var(--purple);padding:1px 4px;border-radius:3px;color:#fff">ATM</span>' : ''}
+              </td>
+              <td style="padding:7px 10px;${pBold}">${r.put_ltp}</td>
+              <td style="padding:7px 10px;color:var(--text-3)">${fmtNum(r.put_vol,0)}</td>
+              <td style="padding:7px 10px;color:var(--orange)">${r.put_iv || '—'}</td>
+              <td style="padding:7px 10px">
+                <div style="font-size:11px">${fmtNum(r.put_oi,0)}</div>
+                <div style="height:3px;background:var(--red);opacity:0.5;border-radius:2px;width:${oiW(r.put_oi)}%"></div>
+              </td>
+            </tr>`;
+          }).join('')}
+        </tbody>
+      </table>
+    </div>`;
+
+  // Scroll to ATM
+  setTimeout(() => {
+    const atm = document.getElementById('atm-row');
+    if (atm) atm.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }, 200);
+}
+
+document.addEventListener('DOMContentLoaded', loadExpirations);
+</script>
+{% endblock %}
